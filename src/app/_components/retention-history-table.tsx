@@ -332,7 +332,7 @@ Agradecemos su pronta gestión.
             <div className="flex items-center gap-1">
                 <Tooltip>
                     <TooltipTrigger asChild>
-                        <Button variant="ghost" size="icon" onClick={() => handleShareForVoiding(item)}>
+                        <Button variant="ghost" size="icon" onClick={() => handleShareForVoiding(item)} disabled={selectedCount > 0}>
                             <Mail className="h-4 w-4" />
                         </Button>
                     </TooltipTrigger>
@@ -342,7 +342,7 @@ Agradecemos su pronta gestión.
                 </Tooltip>
                 <Tooltip>
                     <TooltipTrigger asChild>
-                        <Button variant="ghost" size="icon" onClick={() => handleRequestSriAcceptance(item)}>
+                        <Button variant="ghost" size="icon" onClick={() => handleRequestSriAcceptance(item)} disabled={selectedCount > 0}>
                             <Send className="h-4 w-4" />
                         </Button>
                     </TooltipTrigger>
@@ -417,7 +417,7 @@ Agradecemos su pronta gestión.
             <div className="flex items-center gap-1">
                 <Tooltip>
                     <TooltipTrigger asChild>
-                        <Button variant="ghost" size="icon" onClick={() => handleShareForVoiding(item)}>
+                        <Button variant="ghost" size="icon" onClick={() => handleShareForVoiding(item)} disabled={selectedCount > 0}>
                             <Mail className="h-4 w-4" />
                         </Button>
                     </TooltipTrigger>
@@ -427,7 +427,7 @@ Agradecemos su pronta gestión.
                 </Tooltip>
                 <Tooltip>
                     <TooltipTrigger asChild>
-                        <Button variant="ghost" size="icon" onClick={() => handleRequestSriAcceptance(item)}>
+                        <Button variant="ghost" size="icon" onClick={() => handleRequestSriAcceptance(item)} disabled={selectedCount > 0}>
                             <Send className="h-4 w-4" />
                         </Button>
                     </TooltipTrigger>
