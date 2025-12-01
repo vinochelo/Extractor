@@ -38,6 +38,7 @@ import {
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { ExternalLink, FileWarning, Archive, RotateCcw, Trash2, Mail, Send } from 'lucide-react';
 import { format } from 'date-fns';
@@ -74,6 +75,7 @@ export function RetentionHistoryTable() {
   const firestore = useFirestore();
   const { toast } = useToast();
   const [retentionToDelete, setRetentionToDelete] = useState<RetentionRecord | null>(null);
+  const [selectedRetentions, setSelectedRetentions] = useState<Record<string, RetentionRecord>>({});
 
   const retencionesQuery = useMemoFirebase(() => {
     if (!firestore || !user?.uid) return null;
@@ -95,6 +97,33 @@ export function RetentionHistoryTable() {
     return { activeRetenciones: active, anulatedRetenciones: anulated };
   }, [retenciones]);
 
+  const selectedCount = Object.keys(selectedRetentions).length;
+
+  const handleSelectRetention = (retention: RetentionRecord, isSelected: boolean) => {
+    setSelectedRetentions(prev => {
+        const newSelected = { ...prev };
+        if (isSelected) {
+            newSelected[retention.id] = retention;
+        } else {
+            delete newSelected[retention.id];
+        }
+        return newSelected;
+    });
+  };
+
+  const handleSelectAll = (isSelected: boolean) => {
+    if (isSelected) {
+        const allActive = activeRetenciones.reduce((acc, r) => {
+            acc[r.id] = r;
+            return acc;
+        }, {} as Record<string, RetentionRecord>);
+        setSelectedRetentions(allActive);
+    } else {
+        setSelectedRetentions({});
+    }
+  };
+
+
   const generateFormattedText = (data: RetentionRecord) => {
     return desiredOrder
       .map(key => {
@@ -107,6 +136,45 @@ export function RetentionHistoryTable() {
       .filter(Boolean)
       .join('\n');
   }
+
+  const handleBulkShareForVoiding = () => {
+    const selectedItems = Object.values(selectedRetentions);
+    const emailBody = selectedItems.map(item => 
+        `Detalles de la retención a anular:\n--------------------------------\n${generateFormattedText(item)}\n--------------------------------`
+    ).join('\n\n');
+
+    const subject = "Anulación de Múltiples Retenciones";
+    const body = encodeURIComponent(`Buenos días,\n\nFavor su ayuda anulando las retenciones adjuntas.\n\n${emailBody}`);
+    window.location.href = `mailto:?subject=${subject}&body=${body}`;
+  };
+
+  const handleBulkRequestSriAcceptance = () => {
+    const selectedItems = Object.values(selectedRetentions);
+    const groupedByProvider = selectedItems.reduce((acc, item) => {
+        const key = item.rucProveedor || 'unknown';
+        if (!acc[key]) {
+            acc[key] = {
+                providerName: item.razonSocialProveedor,
+                email: getEmailByRuc(item.rucProveedor),
+                items: []
+            };
+        }
+        acc[key].items.push(item);
+        return acc;
+    }, {} as Record<string, { providerName: string; email: string; items: RetentionRecord[] }>);
+
+    Object.values(groupedByProvider).forEach(group => {
+        const subject = `Anulación de retenciones`;
+        const itemsBody = group.items.map(item => 
+            `Detalles de la retención:\n--------------------------------\n${generateFormattedText(item)}\n--------------------------------`
+        ).join('\n\n');
+        
+        const emailBody = `Estimados ${group.providerName},\n\nPor medio de la presente, solicitamos su apoyo revisando en el portal del SRI la anulación correspondiente a las siguientes retenciones:\n\n${itemsBody}\n\nAgradecemos su pronta gestión.`;
+        
+        const body = encodeURIComponent(emailBody);
+        window.open(`mailto:${group.email}?subject=${subject}&body=${body}`);
+    });
+  };
 
   const handleShareForVoiding = (data: RetentionRecord) => {
     const formattedTextForEmail = generateFormattedText(data);
@@ -204,6 +272,7 @@ Agradecemos su pronta gestión.
   const renderSkeleton = () =>
     Array.from({ length: 3 }).map((_, i) => (
       <TableRow key={i}>
+        <TableCell><Skeleton className="h-4 w-4" /></TableCell>
         <TableCell>
             <div className="flex items-center gap-1">
                 <Skeleton className="h-9 w-9" />
@@ -244,14 +313,21 @@ Agradecemos su pronta gestión.
     if (items.length === 0) {
       return (
         <TableRow>
-          <TableCell colSpan={10} className="h-24 text-center">
+          <TableCell colSpan={11} className="h-24 text-center">
             No hay retenciones en esta categoría.
           </TableCell>
         </TableRow>
       );
     }
     return items.map((item: RetentionRecord) => (
-      <TableRow key={item.id}>
+      <TableRow key={item.id} data-state={selectedRetentions[item.id] ? 'selected' : ''}>
+        <TableCell className="py-2">
+            <Checkbox
+                checked={!!selectedRetentions[item.id]}
+                onCheckedChange={(value) => handleSelectRetention(item, !!value)}
+                aria-label="Seleccionar retención"
+            />
+        </TableCell>
         <TableCell>
             <div className="flex items-center gap-1">
                 <Tooltip>
@@ -423,10 +499,30 @@ Agradecemos su pronta gestión.
             <AlertDescription>{error.message}</AlertDescription>
           </Alert>
         )}
+        
+        <div className="flex items-center gap-4 mb-4">
+            <Button onClick={handleBulkShareForVoiding} disabled={selectedCount === 0}>
+                <Mail className="mr-2" />
+                Email para Anular ({selectedCount})
+            </Button>
+            <Button onClick={handleBulkRequestSriAcceptance} disabled={selectedCount === 0}>
+                <Send className="mr-2" />
+                Solicitar Aceptación SRI ({selectedCount})
+            </Button>
+        </div>
+
+
         <div className="border rounded-lg mb-4">
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-[40px]">
+                  <Checkbox
+                    checked={selectedCount > 0 && selectedCount === activeRetenciones.length}
+                    onCheckedChange={(value) => handleSelectAll(!!value)}
+                    aria-label="Seleccionar todo"
+                  />
+                </TableHead>
                 <TableHead>Emails</TableHead>
                 <TableHead>Nro. Retención</TableHead>
                 <TableHead>Razón Social Proveedor</TableHead>
