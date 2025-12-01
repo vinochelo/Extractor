@@ -9,7 +9,6 @@ import { cn } from "@/lib/utils";
 interface PdfUploaderProps {
   onFileChange: (file: File) => void;
   onFileRemove: () => void;
-  onSubmit: () => void;
   file: File | null;
   loading: boolean;
   error: string | null;
@@ -19,7 +18,6 @@ interface PdfUploaderProps {
 export function PdfUploader({
   onFileChange,
   onFileRemove,
-  onSubmit,
   file,
   loading,
   error,
@@ -63,18 +61,14 @@ export function PdfUploader({
   const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files && e.target.files[0];
     handleFileSelect(selectedFile);
+    // Reset input to allow re-uploading the same file
+    e.target.value = '';
   };
 
   return (
     <div className="w-full max-w-2xl mx-auto">
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          onSubmit();
-        }}
-        className="space-y-4"
-      >
-        {!file && (
+      <div className="space-y-4">
+        {!file && !loading && (
           <label
             onDragEnter={handleDragEnter}
             onDragLeave={handleDragLeave}
@@ -103,21 +97,26 @@ export function PdfUploader({
           </label>
         )}
 
-        {file && (
+        {(loading || file) && (
           <div className="flex items-center justify-between p-4 border rounded-lg bg-card">
             <div className="flex items-center gap-3">
-              <File className="w-6 h-6 text-primary" />
-              <span className="text-sm font-medium truncate">{file.name}</span>
+              {loading ? (
+                 <Loader2 className="w-6 h-6 text-primary animate-spin" />
+              ) : (
+                <File className="w-6 h-6 text-primary" />
+              )}
+              <span className="text-sm font-medium truncate">{loading ? 'Procesando archivo...' : file?.name}</span>
             </div>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              onClick={onFileRemove}
-              disabled={loading}
-            >
-              <X className="w-4 h-4" />
-            </Button>
+            {!loading && file && (
+                <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={onFileRemove}
+              >
+                <X className="w-4 h-4" />
+              </Button>
+            )}
           </div>
         )}
 
@@ -136,13 +135,7 @@ export function PdfUploader({
                 <AlertDescription>{warning}</AlertDescription>
             </Alert>
         )}
-
-
-        <Button type="submit" className="w-full" disabled={!file || loading}>
-          {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          {loading ? "Extrayendo..." : "Extraer Información"}
-        </Button>
-      </form>
+      </div>
     </div>
   );
 }

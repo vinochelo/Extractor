@@ -37,10 +37,10 @@ export function MainPage() {
   }, [user, isUserLoading, auth]);
 
   const handleFileChange = (selectedFile: File) => {
-    setFile(selectedFile);
+    setExtractedData(null);
     setError(null);
     setDuplicateWarning(null);
-    setExtractedData(null);
+    setFile(selectedFile);
   };
 
   const handleRemoveFile = () => {
@@ -56,8 +56,8 @@ export function MainPage() {
     });
   };
 
-  const handleSubmit = async () => {
-    if (!file || !user || !firestore) return;
+  const handleSubmit = async (fileToProcess: File) => {
+    if (!user || !firestore) return;
 
     setLoading(true);
     setError(null);
@@ -65,7 +65,7 @@ export function MainPage() {
     setExtractedData(null);
 
     try {
-      const fileAsDataUrl = await fileToDataUrl(file);
+      const fileAsDataUrl = await fileToDataUrl(fileToProcess);
       const result = await extractData({
         fileAsDataUrl,
       });
@@ -74,7 +74,7 @@ export function MainPage() {
         // Prepare the record to show/save
         const retentionRecordData = {
           ...result.data,
-          fileName: file.name,
+          fileName: fileToProcess.name,
           createdAt: new Date(), // Use JS Date object, Firestore will convert it.
           userId: user.uid,
           estado: 'Solicitado' as const, // Set default status
@@ -125,6 +125,13 @@ export function MainPage() {
     }
   };
 
+  useEffect(() => {
+    if (file && user && firestore) {
+      handleSubmit(file);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [file, user, firestore]);
+
   return (
     <main className="container mx-auto px-4 py-8 md:py-16">
       <div className="text-center mb-12">
@@ -146,7 +153,6 @@ export function MainPage() {
           file={file}
           onFileChange={handleFileChange}
           onFileRemove={handleRemoveFile}
-          onSubmit={handleSubmit}
           loading={loading || isUserLoading}
           error={error}
           warning={duplicateWarning}
