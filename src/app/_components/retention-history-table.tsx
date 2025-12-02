@@ -299,6 +299,7 @@ Agradecemos su pronta gestión.
             <div className="flex items-center gap-1">
                 <Skeleton className="h-9 w-9" />
                 <Skeleton className="h-9 w-9" />
+                <Skeleton className="h-9 w-9" />
             </div>
         </TableCell>
         <TableCell>
@@ -375,6 +376,16 @@ Agradecemos su pronta gestión.
                         <p>Solicitar Aceptación SRI</p>
                     </TooltipContent>
                 </Tooltip>
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <Button variant="ghost" size="icon" onClick={() => handleCopy(item)}>
+                            {copiedId === item.id ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+                        </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                        <p>Copiar Datos</p>
+                    </TooltipContent>
+                </Tooltip>
             </div>
         </TableCell>
         <TableCell className="font-mono">{item.numeroRetencion}</TableCell>
@@ -396,16 +407,6 @@ Agradecemos su pronta gestión.
         </TableCell>
         <TableCell className="text-right">
           <div className="flex items-center justify-end gap-2">
-            <Tooltip>
-                <TooltipTrigger asChild>
-                    <Button variant="ghost" size="icon" onClick={() => handleCopy(item)}>
-                        {copiedId === item.id ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
-                    </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                    <p>Copiar Datos</p>
-                </TooltipContent>
-            </Tooltip>
             {item.estado !== 'Solicitado' && (
                 <Tooltip>
                     <TooltipTrigger asChild>
@@ -471,6 +472,16 @@ Agradecemos su pronta gestión.
                         <p>Solicitar Aceptación SRI</p>
                     </TooltipContent>
                 </Tooltip>
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <Button variant="ghost" size="icon" onClick={() => handleCopy(item)}>
+                            {copiedId === item.id ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+                        </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                        <p>Copiar Datos</p>
+                    </TooltipContent>
+                </Tooltip>
             </div>
         </TableCell>
         <TableCell className="font-mono">{item.numeroRetencion}</TableCell>
@@ -490,16 +501,6 @@ Agradecemos su pronta gestión.
         </TableCell>
         <TableCell className="text-right">
             <div className="flex items-center justify-end gap-2">
-                <Tooltip>
-                    <TooltipTrigger asChild>
-                        <Button variant="ghost" size="icon" onClick={() => handleCopy(item)}>
-                            {copiedId === item.id ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
-                        </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                        <p>Copiar Datos</p>
-                    </TooltipContent>
-                </Tooltip>
                 <Tooltip>
                     <TooltipTrigger asChild>
                       <Button size="icon" variant="ghost" onClick={() => handleRevertStatus(item)}>
@@ -570,7 +571,7 @@ Agradecemos su pronta gestión.
                     aria-label="Seleccionar todo"
                   />
                 </TableHead>
-                <TableHead>Emails</TableHead>
+                <TableHead>Acciones</TableHead>
                 <TableHead>Nro. Retención</TableHead>
                 <TableHead>Razón Social Proveedor</TableHead>
                 <TableHead>Nro. Factura</TableHead>
@@ -579,7 +580,7 @@ Agradecemos su pronta gestión.
                 <TableHead>Fecha Creación</TableHead>
                 <TableHead>Fecha Emisión</TableHead>
                 <TableHead>Verificar SRI</TableHead>
-                <TableHead className="text-right">Acciones</TableHead>
+                <TableHead className="text-right">Otras Acciones</TableHead>
                 <TableHead>Autorización</TableHead>
               </TableRow>
             </TableHeader>
@@ -603,7 +604,7 @@ Agradecemos su pronta gestión.
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Emails</TableHead>
+                        <TableHead>Acciones</TableHead>
                         <TableHead>Nro. Retención</TableHead>
                         <TableHead>Razón Social Proveedor</TableHead>
                         <TableHead>Nro. Factura</TableHead>
@@ -612,7 +613,7 @@ Agradecemos su pronta gestión.
                         <TableHead>Fecha Creación</TableHead>
                         <TableHead>Fecha Emisión</TableHead>
                         <TableHead>Verificar SRI</TableHead>
-                        <TableHead className="text-right">Acciones</TableHead>
+                        <TableHead className="text-right">Otras Acciones</TableHead>
                         <TableHead>Autorización</TableHead>
                       </TableRow>
                     </TableHeader>
