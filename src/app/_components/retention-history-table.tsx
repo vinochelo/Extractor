@@ -40,7 +40,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
-import { ExternalLink, FileWarning, Archive, RotateCcw, Trash2, Mail, Send } from 'lucide-react';
+import { ExternalLink, FileWarning, Archive, RotateCcw, Trash2, Mail, Send, Copy, Check } from 'lucide-react';
 import { format } from 'date-fns';
 import type { RetentionRecord, RetentionStatus } from '@/lib/types';
 import { StatusSelector } from './status-selector';
@@ -57,6 +57,7 @@ const formatDisplayKey = (key: string): string => {
       rucProveedor: "RUC Proveedor",
       numeroFactura: "Nro. Factura",
       fechaEmision: "Fecha Emisión",
+      valorRetencion: "Valor Retenido",
     };
     return keyMap[key] || key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
 };
@@ -67,7 +68,8 @@ const desiredOrder: (keyof RetentionRecord)[] = [
     'razonSocialProveedor',
     'rucProveedor',
     'numeroFactura',
-    'fechaEmision'
+    'fechaEmision',
+    'valorRetencion'
 ];
 
 export function RetentionHistoryTable() {
@@ -76,6 +78,8 @@ export function RetentionHistoryTable() {
   const { toast } = useToast();
   const [retentionToDelete, setRetentionToDelete] = useState<RetentionRecord | null>(null);
   const [selectedRetentions, setSelectedRetentions] = useState<Record<string, RetentionRecord>>({});
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
 
   const retencionesQuery = useMemoFirebase(() => {
     if (!firestore || !user?.uid) return null;
@@ -136,6 +140,24 @@ export function RetentionHistoryTable() {
       .filter(Boolean)
       .join('\n');
   }
+
+  const handleCopy = (data: RetentionRecord) => {
+    const fullFormattedTextForCopy = `
+Resumen de Retención:
+--------------------------------
+${generateFormattedText(data)}
+--------------------------------
+  `.trim();
+
+    navigator.clipboard.writeText(fullFormattedTextForCopy).then(() => {
+      setCopiedId(data.id);
+      toast({
+        title: "Copiado al portapapeles",
+        description: "Los datos de la retención han sido copiados.",
+      });
+      setTimeout(() => setCopiedId(null), 2000);
+    });
+  };
 
   const handleBulkShareForVoiding = () => {
     const selectedItems = Object.values(selectedRetentions);
@@ -289,6 +311,9 @@ Agradecemos su pronta gestión.
           <Skeleton className="h-4 w-20" />
         </TableCell>
         <TableCell>
+          <Skeleton className="h-4 w-20" />
+        </TableCell>
+        <TableCell>
           <Skeleton className="h-6 w-24" />
         </TableCell>
         <TableCell>
@@ -313,7 +338,7 @@ Agradecemos su pronta gestión.
     if (items.length === 0) {
       return (
         <TableRow>
-          <TableCell colSpan={11} className="h-24 text-center">
+          <TableCell colSpan={12} className="h-24 text-center">
             No hay retenciones en esta categoría.
           </TableCell>
         </TableRow>
@@ -357,6 +382,7 @@ Agradecemos su pronta gestión.
           {item.razonSocialProveedor}
         </TableCell>
         <TableCell>{item.numeroFactura}</TableCell>
+        <TableCell className="font-mono text-right">{item.valorRetencion}</TableCell>
         <TableCell>
           <StatusSelector retention={item} />
         </TableCell>
@@ -370,6 +396,16 @@ Agradecemos su pronta gestión.
         </TableCell>
         <TableCell className="text-right">
           <div className="flex items-center justify-end gap-2">
+            <Tooltip>
+                <TooltipTrigger asChild>
+                    <Button variant="ghost" size="icon" onClick={() => handleCopy(item)}>
+                        {copiedId === item.id ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+                    </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                    <p>Copiar Datos</p>
+                </TooltipContent>
+            </Tooltip>
             {item.estado !== 'Solicitado' && (
                 <Tooltip>
                     <TooltipTrigger asChild>
@@ -405,7 +441,7 @@ Agradecemos su pronta gestión.
     if (items.length === 0) {
       return (
         <TableRow>
-          <TableCell colSpan={10} className="h-24 text-center">
+          <TableCell colSpan={11} className="h-24 text-center">
             No hay retenciones en esta categoría.
           </TableCell>
         </TableRow>
@@ -442,6 +478,7 @@ Agradecemos su pronta gestión.
           {item.razonSocialProveedor}
         </TableCell>
         <TableCell>{item.numeroFactura}</TableCell>
+        <TableCell className="font-mono text-right">{item.valorRetencion}</TableCell>
         <TableCell><StatusBadge status={item.estado} /></TableCell>
         <TableCell>{formatDate(item.createdAt)}</TableCell>
         <TableCell>{item.fechaEmision}</TableCell>
@@ -453,6 +490,16 @@ Agradecemos su pronta gestión.
         </TableCell>
         <TableCell className="text-right">
             <div className="flex items-center justify-end gap-2">
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <Button variant="ghost" size="icon" onClick={() => handleCopy(item)}>
+                            {copiedId === item.id ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+                        </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                        <p>Copiar Datos</p>
+                    </TooltipContent>
+                </Tooltip>
                 <Tooltip>
                     <TooltipTrigger asChild>
                       <Button size="icon" variant="ghost" onClick={() => handleRevertStatus(item)}>
@@ -527,6 +574,7 @@ Agradecemos su pronta gestión.
                 <TableHead>Nro. Retención</TableHead>
                 <TableHead>Razón Social Proveedor</TableHead>
                 <TableHead>Nro. Factura</TableHead>
+                <TableHead className="text-right">Valor Reten.</TableHead>
                 <TableHead>Estado</TableHead>
                 <TableHead>Fecha Creación</TableHead>
                 <TableHead>Fecha Emisión</TableHead>
@@ -559,6 +607,7 @@ Agradecemos su pronta gestión.
                         <TableHead>Nro. Retención</TableHead>
                         <TableHead>Razón Social Proveedor</TableHead>
                         <TableHead>Nro. Factura</TableHead>
+                        <TableHead className="text-right">Valor Reten.</TableHead>
                         <TableHead>Estado</TableHead>
                         <TableHead>Fecha Creación</TableHead>
                         <TableHead>Fecha Emisión</TableHead>

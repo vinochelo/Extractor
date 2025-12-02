@@ -9,6 +9,7 @@ export type RetentionData = {
   rucProveedor: string;
   numeroFactura: string;
   fechaEmision: string;
+  valorRetencion: string;
 };
 
 export type RetentionRecord = RetentionData & {

@@ -30,6 +30,7 @@ const formatDisplayKey = (key: string): string => {
     rucProveedor: "RUC Proveedor",
     numeroFactura: "Nro. Factura",
     fechaEmision: "Fecha Emisión",
+    valorRetencion: "Valor Retenido",
   };
   return keyMap[key] || key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
 };
@@ -40,7 +41,8 @@ const desiredOrder: (keyof RetentionRecord)[] = [
     'razonSocialProveedor',
     'rucProveedor',
     'numeroFactura',
-    'fechaEmision'
+    'fechaEmision',
+    'valorRetencion',
 ];
 
 export function ExtractionResultCard({ data }: ExtractionResultCardProps) {
@@ -92,9 +94,7 @@ ${formattedTextForEmail}
   const handleRequestSriAcceptance = () => {
     const providerEmail = getEmailByRuc(data.rucProveedor);
     const subject = `Anulación retención ${data.numeroRetencion}`;
-    const emailBody = `Estimados ${data.razonSocialProveedor},
-
-Por medio de la presente, solicitamos su apoyo revisando en el portal del SRI la anulación correspondiente a la siguiente retención:
+    const emailBody = `Por medio de la presente, solicitamos su apoyo revisando en el portal del SRI la anulación correspondiente a la siguiente retención:
 
 Detalles de la retención:
 --------------------------------

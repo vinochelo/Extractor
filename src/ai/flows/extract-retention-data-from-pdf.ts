@@ -27,6 +27,7 @@ const ExtractRetentionDataFromPDFOutputSchema = z.object({
   rucProveedor: z.string().describe('El "ruc del proveedor" del documento.'),
   numeroFactura: z.string().describe('El "numero de factura" del documento.'),
   fechaEmision: z.string().describe('La "fechaEmision" del documento.'),
+  valorRetencion: z.string().describe('El "valor total retenido" del documento.'),
 });
 export type ExtractRetentionDataFromPDFOutput = z.infer<typeof ExtractRetentionDataFromPDFOutputSchema>;
 
@@ -49,6 +50,7 @@ const prompt = ai.definePrompt({
   - rucProveedor
   - numeroFactura
   - fechaEmision
+  - valorRetencion
 
   Return the extracted data in JSON format.
 

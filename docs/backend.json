@@ -38,6 +38,10 @@
           "type": "string",
           "description": "La 'fechaEmision' (fecha de emisión) extraída del PDF."
         },
+        "valorRetencion": {
+          "type": "string",
+          "description": "El 'valor total retenido' extraído del PDF."
+        },
         "fileName": {
           "type": "string",
           "description": "El nombre del archivo PDF del cual se extrajeron los datos."
@@ -62,6 +66,7 @@
         "rucProveedor",
         "numeroFactura",
         "fechaEmision",
+        "valorRetencion",
         "fileName",
         "createdAt",
         "estado"
