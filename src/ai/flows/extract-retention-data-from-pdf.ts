@@ -25,6 +25,7 @@ const ExtractRetentionDataFromPDFOutputSchema = z.object({
   numeroAutorizacion: z.string().describe('El "numero de autorización" del documento.'),
   razonSocialProveedor: z.string().describe('La "razon social del proveedor" del documento.'),
   rucProveedor: z.string().describe('El "ruc del proveedor" del documento.'),
+  emailProveedor: z.string().describe('El "Email" del proveedor en el documento. Extraer si está presente.'),
   numeroFactura: z.string().describe('El "numero de factura" del documento.'),
   fechaEmision: z.string().describe('La "fechaEmision" del documento.'),
   valorRetencion: z.string().describe('El "valor total retenido" del documento.'),
@@ -48,6 +49,7 @@ const prompt = ai.definePrompt({
   - numeroAutorizacion
   - razonSocialProveedor
   - rucProveedor
+  - emailProveedor (if available)
   - numeroFactura
   - fechaEmision
   - valorRetencion

@@ -55,6 +55,7 @@ const formatDisplayKey = (key: string): string => {
       numeroAutorizacion: "Autorización",
       razonSocialProveedor: "Razón Social Proveedor",
       rucProveedor: "RUC Proveedor",
+      emailProveedor: "Email Proveedor",
       numeroFactura: "Nro. Factura",
       fechaEmision: "Fecha Emisión",
       valorRetencion: "Valor Retenido",
@@ -67,6 +68,7 @@ const desiredOrder: (keyof RetentionRecord)[] = [
     'numeroAutorizacion',
     'razonSocialProveedor',
     'rucProveedor',
+    'emailProveedor',
     'numeroFactura',
     'fechaEmision',
     'valorRetencion'
@@ -132,7 +134,7 @@ export function RetentionHistoryTable() {
     return desiredOrder
       .map(key => {
           const value = data[key];
-          if (value !== undefined && value !== null) {
+          if (value !== undefined && value !== null && value !== '') {
               return `${formatDisplayKey(key)}: ${value}`;
           }
           return null;
@@ -177,7 +179,7 @@ ${generateFormattedText(data)}
         if (!acc[key]) {
             acc[key] = {
                 providerName: item.razonSocialProveedor,
-                email: getEmailByRuc(item.rucProveedor),
+                email: item.emailProveedor || getEmailByRuc(item.rucProveedor),
                 items: []
             };
         }
@@ -215,7 +217,7 @@ ${formattedTextForEmail}
   };
 
   const handleRequestSriAcceptance = (data: RetentionRecord) => {
-    const providerEmail = getEmailByRuc(data.rucProveedor);
+    const providerEmail = data.emailProveedor || getEmailByRuc(data.rucProveedor);
     const formattedTextForEmail = generateFormattedText(data);
     const subject = `Anulación retención ${data.numeroRetencion}`;
     const emailBody = `Estimados ${data.razonSocialProveedor},

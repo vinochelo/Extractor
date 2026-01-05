@@ -7,6 +7,7 @@ export type RetentionData = {
   numeroAutorizacion: string;
   razonSocialProveedor: string;
   rucProveedor: string;
+  emailProveedor: string;
   numeroFactura: string;
   fechaEmision: string;
   valorRetencion: string;

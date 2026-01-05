@@ -30,6 +30,10 @@
           "type": "string",
           "description": "El 'ruc del proveedor' extraído del PDF."
         },
+        "emailProveedor": {
+          "type": "string",
+          "description": "El 'Email' del proveedor extraído del PDF."
+        },
         "numeroFactura": {
           "type": "string",
           "description": "El 'numero de factura' extraído del PDF."
@@ -64,6 +68,7 @@
         "numeroAutorizacion",
         "razonSocialProveedor",
         "rucProveedor",
+        "emailProveedor",
         "numeroFactura",
         "fechaEmision",
         "valorRetencion",

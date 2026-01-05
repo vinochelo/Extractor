@@ -28,6 +28,7 @@ const formatDisplayKey = (key: string): string => {
     numeroAutorizacion: "Autorización",
     razonSocialProveedor: "Razón Social Proveedor",
     rucProveedor: "RUC Proveedor",
+    emailProveedor: "Email Proveedor",
     numeroFactura: "Nro. Factura",
     fechaEmision: "Fecha Emisión",
     valorRetencion: "Valor Retenido",
@@ -40,6 +41,7 @@ const desiredOrder: (keyof RetentionRecord)[] = [
     'numeroAutorizacion',
     'razonSocialProveedor',
     'rucProveedor',
+    'emailProveedor',
     'numeroFactura',
     'fechaEmision',
     'valorRetencion',
@@ -52,7 +54,7 @@ export function ExtractionResultCard({ data }: ExtractionResultCardProps) {
   // Filter out unwanted properties and sort them
   const displayableData = desiredOrder
     .map(key => [key, data[key]])
-    .filter(([key, value]) => value !== undefined && value !== null) as [string, any][];
+    .filter(([key, value]) => value !== undefined && value !== null && value !== '') as [string, any][];
 
   const formattedTextForEmail = displayableData
     .map(([key, value]) => `${formatDisplayKey(key)}: ${value}`)
@@ -92,7 +94,7 @@ ${formattedTextForEmail}
   };
 
   const handleRequestSriAcceptance = () => {
-    const providerEmail = getEmailByRuc(data.rucProveedor);
+    const providerEmail = data.emailProveedor || getEmailByRuc(data.rucProveedor);
     const subject = `Anulación retención ${data.numeroRetencion}`;
     const emailBody = `Por medio de la presente, solicitamos su apoyo revisando en el portal del SRI la anulación correspondiente a la siguiente retención:
 
@@ -120,7 +122,7 @@ Agradecemos su pronta gestión.
           {displayableData.map(([key, value]) => (
             <div key={key} className={cn(
               "p-3 bg-muted/50 rounded-lg",
-              key === 'numeroRetencion' && 'sm:col-span-2'
+              (key === 'numeroRetencion' || key === 'emailProveedor') && 'sm:col-span-2'
             )}>
               <p className="font-semibold text-muted-foreground">{formatDisplayKey(key)}</p>
               <p className={cn(
