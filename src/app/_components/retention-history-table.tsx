@@ -297,44 +297,44 @@ Agradecemos su pronta gestión.
     Array.from({ length: 3 }).map((_, i) => (
       <TableRow key={i}>
         <TableCell className="p-2"><Skeleton className="h-4 w-4" /></TableCell>
-        <TableCell className="p-2">
+        <TableCell className="py-2 px-2">
             <div className="flex items-center gap-1">
                 <Skeleton className="h-9 w-9" />
                 <Skeleton className="h-9 w-9" />
                 <Skeleton className="h-9 w-9" />
             </div>
         </TableCell>
-        <TableCell className="p-2">
+        <TableCell className="py-2 px-2">
           <Skeleton className="h-4 w-24" />
         </TableCell>
-        <TableCell className="p-2">
+        <TableCell className="py-2 px-2">
           <Skeleton className="h-4 w-40" />
         </TableCell>
-        <TableCell className="p-2">
+        <TableCell className="py-2 px-2">
           <Skeleton className="h-4 w-20" />
         </TableCell>
-        <TableCell className="p-2">
+        <TableCell className="py-2 px-2">
           <Skeleton className="h-4 w-20" />
         </TableCell>
-        <TableCell className="p-2">
+        <TableCell className="py-2 px-2">
           <Skeleton className="h-6 w-24" />
         </TableCell>
-        <TableCell className="p-2">
+        <TableCell className="py-2 px-2">
           <Skeleton className="h-4 w-28" />
         </TableCell>
-        <TableCell className="p-2">
+        <TableCell className="py-2 px-2">
           <Skeleton className="h-4 w-28" />
         </TableCell>
-        <TableCell className="p-2">
+        <TableCell className="py-2 px-2">
           <Skeleton className="h-9 w-32" />
         </TableCell>
-        <TableCell className="p-2">
+        <TableCell className="py-2 px-2">
             <div className="flex items-center justify-end gap-2">
                 <Skeleton className="h-9 w-9" />
                 <Skeleton className="h-9 w-9" />
             </div>
         </TableCell>
-        <TableCell className="p-2">
+        <TableCell className="py-2 px-2">
           <Skeleton className="h-4 w-32" />
         </TableCell>
       </TableRow>
@@ -359,7 +359,7 @@ Agradecemos su pronta gestión.
                 aria-label="Seleccionar retención"
             />
         </TableCell>
-        <TableCell className="p-2">
+        <TableCell className="py-2 px-2">
             <div className="flex items-center gap-1">
                 <Tooltip>
                     <TooltipTrigger asChild>
@@ -393,24 +393,24 @@ Agradecemos su pronta gestión.
                 </Tooltip>
             </div>
         </TableCell>
-        <TableCell className="font-mono p-2">{item.numeroRetencion}</TableCell>
-        <TableCell className="font-medium p-2">
+        <TableCell className="font-mono py-2 px-2">{item.numeroRetencion}</TableCell>
+        <TableCell className="font-medium py-2 px-2">
           {item.razonSocialProveedor}
         </TableCell>
-        <TableCell className="p-2">{item.numeroFactura}</TableCell>
-        <TableCell className="font-mono text-right p-2">{item.valorRetencion}</TableCell>
-        <TableCell className="p-2">
+        <TableCell className="py-2 px-2">{item.numeroFactura}</TableCell>
+        <TableCell className="font-mono text-right py-2 px-2">{item.valorRetencion}</TableCell>
+        <TableCell className="py-2 px-2">
           <StatusSelector retention={item} />
         </TableCell>
-        <TableCell className="p-2">{formatDate(item.createdAt)}</TableCell>
-        <TableCell className="p-2">{item.fechaEmision}</TableCell>
-        <TableCell className="p-2">
+        <TableCell className="py-2 px-2">{formatDate(item.createdAt)}</TableCell>
+        <TableCell className="py-2 px-2">{item.fechaEmision}</TableCell>
+        <TableCell className="py-2 px-2">
             <Button size="sm" variant="outline" onClick={() => handleVerifySri(item.numeroAutorizacion)}>
                 <ExternalLink className="mr-2 h-4 w-4" />
                 Verificar en SRI
             </Button>
         </TableCell>
-        <TableCell className="p-2 text-center">
+        <TableCell className="py-2 px-2 text-center">
           <div className="flex items-center justify-center gap-1">
             {item.estado !== 'Solicitado' && (
                 <Tooltip>
@@ -436,7 +436,7 @@ Agradecemos su pronta gestión.
             </Tooltip>
           </div>
         </TableCell>
-        <TableCell className="p-2">
+        <TableCell className="py-2 px-2">
             <span className="font-mono text-xs">{item.numeroAutorizacion}</span>
         </TableCell>
       </TableRow>
@@ -455,7 +455,7 @@ Agradecemos su pronta gestión.
     }
     return items.map((item: RetentionRecord) => (
       <TableRow key={item.id}>
-         <TableCell className="p-2">
+         <TableCell className="py-2 px-2">
             <div className="flex items-center gap-1">
                 <Tooltip>
                     <TooltipTrigger asChild>
@@ -489,22 +489,22 @@ Agradecemos su pronta gestión.
                 </Tooltip>
             </div>
         </TableCell>
-        <TableCell className="font-mono p-2">{item.numeroRetencion}</TableCell>
-        <TableCell className="font-medium p-2">
+        <TableCell className="font-mono py-2 px-2">{item.numeroRetencion}</TableCell>
+        <TableCell className="font-medium py-2 px-2">
           {item.razonSocialProveedor}
         </TableCell>
-        <TableCell className="p-2">{item.numeroFactura}</TableCell>
-        <TableCell className="font-mono text-right p-2">{item.valorRetencion}</TableCell>
-        <TableCell className="p-2"><StatusBadge status={item.estado} /></TableCell>
-        <TableCell className="p-2">{formatDate(item.createdAt)}</TableCell>
-        <TableCell className="p-2">{item.fechaEmision}</TableCell>
-        <TableCell className="p-2">
+        <TableCell className="py-2 px-2">{item.numeroFactura}</TableCell>
+        <TableCell className="font-mono text-right py-2 px-2">{item.valorRetencion}</TableCell>
+        <TableCell className="py-2 px-2"><StatusBadge status={item.estado} /></TableCell>
+        <TableCell className="py-2 px-2">{formatDate(item.createdAt)}</TableCell>
+        <TableCell className="py-2 px-2">{item.fechaEmision}</TableCell>
+        <TableCell className="py-2 px-2">
             <Button size="sm" variant="outline" onClick={() => handleVerifySri(item.numeroAutorizacion)}>
                 <ExternalLink className="mr-2 h-4 w-4" />
                 Verificar en SRI
             </Button>
         </TableCell>
-        <TableCell className="p-2 text-center">
+        <TableCell className="py-2 px-2 text-center">
             <div className="flex items-center justify-center gap-1">
                 <Tooltip>
                     <TooltipTrigger asChild>
@@ -528,7 +528,7 @@ Agradecemos su pronta gestión.
                 </Tooltip>
             </div>
         </TableCell>
-        <TableCell className="p-2">
+        <TableCell className="py-2 px-2">
             <span className="font-mono text-xs">{item.numeroAutorizacion}</span>
         </TableCell>
       </TableRow>
@@ -576,16 +576,16 @@ Agradecemos su pronta gestión.
                     aria-label="Seleccionar todo"
                   />
                 </TableHead>
-                <TableHead className="px-2">Acciones Email/Copiar</TableHead>
-                <TableHead className="px-2">Nro. Retención</TableHead>
-                <TableHead className="px-2">Razón Social Proveedor</TableHead>
-                <TableHead className="px-2">Nro. Factura</TableHead>
-                <TableHead className="text-right px-2">Valor Reten.</TableHead>
-                <TableHead className="px-2">Estado</TableHead>
-                <TableHead className="px-2">Fecha Creación</TableHead>
-                <TableHead className="px-2">Fecha Emisión</TableHead>
-                <TableHead className="px-2">Verificar SRI</TableHead>
-                <TableHead className="text-center px-2">Otras Acciones</TableHead>
+                <TableHead className="px-2 w-[130px]">Acciones Email/Copiar</TableHead>
+                <TableHead className="px-2 w-[150px]">Nro. Retención</TableHead>
+                <TableHead className="px-2 w-[250px]">Razón Social Proveedor</TableHead>
+                <TableHead className="px-2 w-[150px]">Nro. Factura</TableHead>
+                <TableHead className="text-right px-2 w-[120px]">Valor Reten.</TableHead>
+                <TableHead className="px-2 w-[150px]">Estado</TableHead>
+                <TableHead className="px-2 w-[160px]">Fecha Creación</TableHead>
+                <TableHead className="px-2 w-[120px]">Fecha Emisión</TableHead>
+                <TableHead className="px-2 w-[150px]">Verificar SRI</TableHead>
+                <TableHead className="text-center px-2 w-[120px]">Otras Acciones</TableHead>
                 <TableHead className="px-2">Autorización</TableHead>
               </TableRow>
             </TableHeader>
@@ -609,16 +609,16 @@ Agradecemos su pronta gestión.
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead className="px-2">Acciones</TableHead>
-                        <TableHead className="px-2">Nro. Retención</TableHead>
-                        <TableHead className="px-2">Razón Social Proveedor</TableHead>
-                        <TableHead className="px-2">Nro. Factura</TableHead>
-                        <TableHead className="text-right px-2">Valor Reten.</TableHead>
-                        <TableHead className="px-2">Estado</TableHead>
-                        <TableHead className="px-2">Fecha Creación</TableHead>
-                        <TableHead className="px-2">Fecha Emisión</TableHead>
-                        <TableHead className="px-2">Verificar SRI</TableHead>
-                        <TableHead className="text-center px-2">Otras Acciones</TableHead>
+                        <TableHead className="px-2 w-[130px]">Acciones</TableHead>
+                        <TableHead className="px-2 w-[150px]">Nro. Retención</TableHead>
+                        <TableHead className="px-2 w-[250px]">Razón Social Proveedor</TableHead>
+                        <TableHead className="px-2 w-[150px]">Nro. Factura</TableHead>
+                        <TableHead className="text-right px-2 w-[120px]">Valor Reten.</TableHead>
+                        <TableHead className="px-2 w-[150px]">Estado</TableHead>
+                        <TableHead className="px-2 w-[160px]">Fecha Creación</TableHead>
+                        <TableHead className="px-2 w-[120px]">Fecha Emisión</TableHead>
+                        <TableHead className="px-2 w-[150px]">Verificar SRI</TableHead>
+                        <TableHead className="text-center px-2 w-[120px]">Otras Acciones</TableHead>
                         <TableHead className="px-2">Autorización</TableHead>
                       </TableRow>
                     </TableHeader>
