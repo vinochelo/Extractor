@@ -5,17 +5,14 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import { useFirestore, useUser, updateDocumentNonBlocking } from '@/firebase';
 import { doc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import type { RetentionRecord, RetentionStatus } from '@/lib/types';
 import { StatusBadge } from './status-badge';
-import { Archive, FileWarning } from 'lucide-react';
-import { useState } from 'react';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-
+import { Archive, FileWarning, XCircle } from 'lucide-react';
 
 interface StatusSelectorProps {
   retention: RetentionRecord;
@@ -72,6 +69,11 @@ export function StatusSelector({ retention }: StatusSelectorProps) {
         label: 'Marcar como Anulado',
         action: () => handleStatusChange('Anulado'),
         icon: <Archive className="mr-2 h-4 w-4" />,
+    });
+    availableActions.push({
+        label: 'Marcar No Recibido',
+        action: () => handleStatusChange('No Recibido'),
+        icon: <XCircle className="mr-2 h-4 w-4" />,
     });
   }
 

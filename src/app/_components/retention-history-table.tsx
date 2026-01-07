@@ -241,7 +241,7 @@ Agradecemos su pronta gestión.
     let previousStatus: RetentionStatus | null = null;
     if (retention.estado === 'Pendiente Anular') {
       previousStatus = 'Solicitado';
-    } else if (retention.estado === 'Anulado') {
+    } else if (retention.estado === 'Anulado' || retention.estado === 'No Recibido') {
       previousStatus = 'Pendiente Anular';
     }
     

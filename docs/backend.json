@@ -58,7 +58,7 @@
         "estado": {
           "type": "string",
           "description": "El estado actual de la retención.",
-          "enum": ["Solicitado", "Pendiente Anular", "Anulado"]
+          "enum": ["Solicitado", "Pendiente Anular", "Anulado", "No Recibido"]
         }
       },
       "required": [

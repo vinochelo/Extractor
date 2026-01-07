@@ -1,6 +1,6 @@
 import type { Timestamp } from "firebase/firestore";
 
-export type RetentionStatus = "Solicitado" | "Pendiente Anular" | "Anulado";
+export type RetentionStatus = "Solicitado" | "Pendiente Anular" | "Anulado" | "No Recibido";
 
 export type RetentionData = {
   numeroRetencion: string;

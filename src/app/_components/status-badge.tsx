@@ -18,6 +18,8 @@ export function StatusBadge({ status, className }: StatusBadgeProps) {
             return 'warning';
           case 'Anulado':
             return 'destructive';
+          case 'No Recibido':
+            return 'neutral';
           default:
             return 'outline';
         }
