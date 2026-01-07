@@ -17,9 +17,9 @@ export function StatusBadge({ status, className }: StatusBadgeProps) {
           case 'Pendiente Anular':
             return 'warning';
           case 'Anulado':
-            return 'destructive';
-          case 'No Recibido':
             return 'neutral';
+          case 'No Recibido':
+            return 'destructive';
           default:
             return 'outline';
         }
