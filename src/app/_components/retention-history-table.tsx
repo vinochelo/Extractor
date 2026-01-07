@@ -320,12 +320,6 @@ Agradecemos su pronta gestión.
           <Skeleton className="h-6 w-24" />
         </TableCell>
         <TableCell className="p-2">
-            <div className="flex items-center justify-end gap-2">
-                <Skeleton className="h-9 w-9" />
-                <Skeleton className="h-9 w-9" />
-            </div>
-        </TableCell>
-        <TableCell className="p-2">
           <Skeleton className="h-4 w-28" />
         </TableCell>
         <TableCell className="p-2">
@@ -333,6 +327,12 @@ Agradecemos su pronta gestión.
         </TableCell>
         <TableCell className="p-2">
           <Skeleton className="h-9 w-32" />
+        </TableCell>
+        <TableCell className="p-2">
+            <div className="flex items-center justify-end gap-2">
+                <Skeleton className="h-9 w-9" />
+                <Skeleton className="h-9 w-9" />
+            </div>
         </TableCell>
         <TableCell className="p-2">
           <Skeleton className="h-4 w-32" />
@@ -402,6 +402,14 @@ Agradecemos su pronta gestión.
         <TableCell className="p-2">
           <StatusSelector retention={item} />
         </TableCell>
+        <TableCell className="p-2">{formatDate(item.createdAt)}</TableCell>
+        <TableCell className="p-2">{item.fechaEmision}</TableCell>
+        <TableCell className="p-2">
+            <Button size="sm" variant="outline" onClick={() => handleVerifySri(item.numeroAutorizacion)}>
+                <ExternalLink className="mr-2 h-4 w-4" />
+                Verificar en SRI
+            </Button>
+        </TableCell>
         <TableCell className="p-2 text-center">
           <div className="flex items-center justify-center gap-1">
             {item.estado !== 'Solicitado' && (
@@ -427,14 +435,6 @@ Agradecemos su pronta gestión.
                 </TooltipContent>
             </Tooltip>
           </div>
-        </TableCell>
-        <TableCell className="p-2">{formatDate(item.createdAt)}</TableCell>
-        <TableCell className="p-2">{item.fechaEmision}</TableCell>
-        <TableCell className="p-2">
-            <Button size="sm" variant="outline" onClick={() => handleVerifySri(item.numeroAutorizacion)}>
-                <ExternalLink className="mr-2 h-4 w-4" />
-                Verificar en SRI
-            </Button>
         </TableCell>
         <TableCell className="p-2">
             <span className="font-mono text-xs">{item.numeroAutorizacion}</span>
@@ -496,6 +496,14 @@ Agradecemos su pronta gestión.
         <TableCell className="p-2">{item.numeroFactura}</TableCell>
         <TableCell className="font-mono text-right p-2">{item.valorRetencion}</TableCell>
         <TableCell className="p-2"><StatusBadge status={item.estado} /></TableCell>
+        <TableCell className="p-2">{formatDate(item.createdAt)}</TableCell>
+        <TableCell className="p-2">{item.fechaEmision}</TableCell>
+        <TableCell className="p-2">
+            <Button size="sm" variant="outline" onClick={() => handleVerifySri(item.numeroAutorizacion)}>
+                <ExternalLink className="mr-2 h-4 w-4" />
+                Verificar en SRI
+            </Button>
+        </TableCell>
         <TableCell className="p-2 text-center">
             <div className="flex items-center justify-center gap-1">
                 <Tooltip>
@@ -519,14 +527,6 @@ Agradecemos su pronta gestión.
                     </TooltipContent>
                 </Tooltip>
             </div>
-        </TableCell>
-        <TableCell className="p-2">{formatDate(item.createdAt)}</TableCell>
-        <TableCell className="p-2">{item.fechaEmision}</TableCell>
-        <TableCell className="p-2">
-            <Button size="sm" variant="outline" onClick={() => handleVerifySri(item.numeroAutorizacion)}>
-                <ExternalLink className="mr-2 h-4 w-4" />
-                Verificar en SRI
-            </Button>
         </TableCell>
         <TableCell className="p-2">
             <span className="font-mono text-xs">{item.numeroAutorizacion}</span>
@@ -582,10 +582,10 @@ Agradecemos su pronta gestión.
                 <TableHead className="px-2">Nro. Factura</TableHead>
                 <TableHead className="text-right px-2">Valor Reten.</TableHead>
                 <TableHead className="px-2">Estado</TableHead>
-                <TableHead className="text-center px-2">Otras Acciones</TableHead>
                 <TableHead className="px-2">Fecha Creación</TableHead>
                 <TableHead className="px-2">Fecha Emisión</TableHead>
                 <TableHead className="px-2">Verificar SRI</TableHead>
+                <TableHead className="text-center px-2">Otras Acciones</TableHead>
                 <TableHead className="px-2">Autorización</TableHead>
               </TableRow>
             </TableHeader>
@@ -615,10 +615,10 @@ Agradecemos su pronta gestión.
                         <TableHead className="px-2">Nro. Factura</TableHead>
                         <TableHead className="text-right px-2">Valor Reten.</TableHead>
                         <TableHead className="px-2">Estado</TableHead>
-                        <TableHead className="text-center px-2">Otras Acciones</TableHead>
                         <TableHead className="px-2">Fecha Creación</TableHead>
                         <TableHead className="px-2">Fecha Emisión</TableHead>
                         <TableHead className="px-2">Verificar SRI</TableHead>
+                        <TableHead className="text-center px-2">Otras Acciones</TableHead>
                         <TableHead className="px-2">Autorización</TableHead>
                       </TableRow>
                     </TableHeader>
