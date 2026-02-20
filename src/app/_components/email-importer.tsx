@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Import } from "lucide-react";
 import Papa from "papaparse";
-import { saveProviderEmails } from "@/lib/provider-emails";
+import { saveProviderEmails, getProviderEmails } from "@/lib/provider-emails";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 export function EmailImporter() {
@@ -42,19 +42,36 @@ export function EmailImporter() {
             return;
         }
 
-        const emailMap: Record<string, string> = {};
-        let validRows = 0;
+        // 1. Obtener correos existentes
+        const existingEmails = getProviderEmails();
+        // 2. Crear una copia para fusionar
+        const emailMap: Record<string, string> = { ...existingEmails };
+        
+        let newRowsCount = 0;
+        let updatedRowsCount = 0;
+
         results.data.forEach((row: any) => {
-            if (row.RUC && row.CORREO) {
-                emailMap[row.RUC.trim()] = row.CORREO.trim();
-                validRows++;
+            const ruc = row.RUC?.trim();
+            const correo = row.CORREO?.trim();
+
+            if (ruc && correo) {
+                if (existingEmails[ruc]) {
+                    if (existingEmails[ruc] !== correo) {
+                        updatedRowsCount++;
+                    }
+                } else {
+                    newRowsCount++;
+                }
+                emailMap[ruc] = correo;
             }
         });
         
+        // 3. Guardar la lista fusionada
         saveProviderEmails(emailMap);
+        
         toast({
             title: "Importación exitosa",
-            description: `Se han cargado ${validRows} correos de proveedores en el navegador.`,
+            description: `Se han añadido ${newRowsCount} nuevos y actualizado ${updatedRowsCount} correos de proveedores. Total: ${Object.keys(emailMap).length} correos guardados.`,
         });
       },
       error: (error: any) => {
@@ -81,7 +98,7 @@ export function EmailImporter() {
         <CardHeader>
             <CardTitle>Importar Correos de Proveedores</CardTitle>
             <CardDescription>
-                Sube un archivo .csv con las columnas 'RUC' y 'CORREO' para autocompletar el destinatario en las solicitudes al SRI. Los datos se guardan localmente en tu navegador.
+                Sube un archivo .csv con las columnas 'RUC' y 'CORREO' para autocompletar el destinatario en las solicitudes al SRI. Los datos se fusionarán con los que ya tengas guardados localmente.
             </CardDescription>
         </CardHeader>
         <CardContent>
