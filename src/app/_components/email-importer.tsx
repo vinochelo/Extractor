@@ -1,10 +1,11 @@
+
 "use client";
 
 import { useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Import } from "lucide-react";
-import Papa from "papaparse";
+import { FileSpreadsheet } from "lucide-react";
+import * as XLSX from "xlsx";
 import { saveProviderEmails, getProviderEmails } from "@/lib/provider-emails";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -16,30 +17,43 @@ export function EmailImporter() {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    if (file.type !== "text/csv") {
-        toast({
+    const reader = new FileReader();
+
+    reader.onload = (e) => {
+      try {
+        const data = new Uint8Array(e.target?.result as ArrayBuffer);
+        const workbook = XLSX.read(data, { type: 'array' });
+        
+        // Tomar la primera hoja
+        const firstSheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[firstSheetName];
+        
+        // Convertir a JSON
+        const jsonData = XLSX.utils.sheet_to_json(worksheet) as any[];
+
+        if (jsonData.length === 0) {
+          toast({
             variant: "destructive",
-            title: "Archivo no válido",
-            description: "Por favor, selecciona un archivo con formato .csv",
-        });
-        return;
-    }
+            title: "Archivo vacío",
+            description: "No se encontraron datos en el archivo seleccionado.",
+          });
+          return;
+        }
 
-    Papa.parse(file, {
-      header: true,
-      skipEmptyLines: true,
-      complete: (results) => {
-        const requiredHeaders = ["RUC", "CORREO"];
-        const headers = results.meta.fields || [];
-        const hasRequiredHeaders = requiredHeaders.every(h => headers.includes(h));
+        // Buscar las columnas requeridas ignorando mayúsculas/minúsculas
+        const firstRow = jsonData[0];
+        const keys = Object.keys(firstRow);
+        
+        const rucKey = keys.find(k => k.toUpperCase() === "RUC");
+        const emailKey = keys.find(k => k.toUpperCase() === "CORREO" || k.toUpperCase() === "EMAIL");
 
-        if (!hasRequiredHeaders) {
-            toast({
-                variant: "destructive",
-                title: "Cabeceras incorrectas",
-                description: `El archivo CSV debe contener las columnas: ${requiredHeaders.join(", ")}.`,
-            });
-            return;
+        if (!rucKey || !emailKey) {
+          toast({
+            variant: "destructive",
+            title: "Columnas no encontradas",
+            description: "El archivo debe contener las columnas 'RUC' y 'CORREO' (o 'EMAIL').",
+          });
+          return;
         }
 
         // 1. Obtener correos existentes
@@ -50,42 +64,51 @@ export function EmailImporter() {
         let newRowsCount = 0;
         let updatedRowsCount = 0;
 
-        results.data.forEach((row: any) => {
-            const ruc = row.RUC?.trim();
-            const correo = row.CORREO?.trim();
+        jsonData.forEach((row: any) => {
+          const ruc = String(row[rucKey] || "").trim();
+          const correo = String(row[emailKey] || "").trim();
 
-            if (ruc && correo) {
-                if (existingEmails[ruc]) {
-                    if (existingEmails[ruc] !== correo) {
-                        updatedRowsCount++;
-                    }
-                } else {
-                    newRowsCount++;
-                }
-                emailMap[ruc] = correo;
+          if (ruc && correo) {
+            if (existingEmails[ruc]) {
+              if (existingEmails[ruc] !== correo) {
+                updatedRowsCount++;
+              }
+            } else {
+              newRowsCount++;
             }
+            emailMap[ruc] = correo;
+          }
         });
         
         // 3. Guardar la lista fusionada
         saveProviderEmails(emailMap);
         
         toast({
-            title: "Importación exitosa",
-            description: `Se han añadido ${newRowsCount} nuevos y actualizado ${updatedRowsCount} correos de proveedores. Total: ${Object.keys(emailMap).length} correos guardados.`,
+          title: "Importación exitosa",
+          description: `Se han añadido ${newRowsCount} nuevos y actualizado ${updatedRowsCount} correos. Total: ${Object.keys(emailMap).length} correos guardados.`,
         });
-      },
-      error: (error: any) => {
+      } catch (error: any) {
         toast({
-            variant: "destructive",
-            title: "Error al leer el archivo",
-            description: error.message,
+          variant: "destructive",
+          title: "Error al procesar el archivo",
+          description: "Asegúrate de que sea un archivo de Excel (.xlsx, .xls) o CSV válido.",
         });
       }
-    });
+    };
 
-    // Reset file input to allow re-uploading the same file
-    if(fileInputRef.current) {
-        fileInputRef.current.value = "";
+    reader.onerror = () => {
+      toast({
+        variant: "destructive",
+        title: "Error de lectura",
+        description: "No se pudo leer el archivo correctamente.",
+      });
+    };
+
+    reader.readAsArrayBuffer(file);
+
+    // Reset para permitir subir el mismo archivo después si es necesario
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
     }
   };
 
@@ -95,25 +118,25 @@ export function EmailImporter() {
 
   return (
     <Card className="w-full max-w-2xl mx-auto mt-8">
-        <CardHeader>
-            <CardTitle>Importar Correos de Proveedores</CardTitle>
-            <CardDescription>
-                Sube un archivo .csv con las columnas 'RUC' y 'CORREO' para autocompletar el destinatario en las solicitudes al SRI. Los datos se fusionarán con los que ya tengas guardados localmente.
-            </CardDescription>
-        </CardHeader>
-        <CardContent>
-            <input
-                type="file"
-                ref={fileInputRef}
-                onChange={handleFileChange}
-                className="hidden"
-                accept=".csv"
-            />
-            <Button onClick={handleImportClick}>
-                <Import className="mr-2 h-4 w-4" />
-                Importar archivo .csv
-            </Button>
-        </CardContent>
+      <CardHeader>
+        <CardTitle>Importar Correos de Proveedores</CardTitle>
+        <CardDescription>
+          Sube un archivo de <strong>Excel (.xlsx, .xls)</strong> o <strong>CSV</strong> con las columnas 'RUC' y 'CORREO' para autocompletar destinatarios. Los datos se fusionarán con tu lista actual.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <input
+          type="file"
+          ref={fileInputRef}
+          onChange={handleFileChange}
+          className="hidden"
+          accept=".xlsx, .xls, .csv"
+        />
+        <Button onClick={handleImportClick}>
+          <FileSpreadsheet className="mr-2 h-4 w-4" />
+          Importar archivo de Excel / CSV
+        </Button>
+      </CardContent>
     </Card>
   );
 }
