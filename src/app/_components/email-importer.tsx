@@ -1,16 +1,23 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { FileSpreadsheet } from "lucide-react";
+import { FileSpreadsheet, Clock } from "lucide-react";
 import * as XLSX from "xlsx";
-import { saveProviderEmails, getProviderEmails } from "@/lib/provider-emails";
+import { saveProviderEmails, getProviderEmails, getLastUpdatedDate } from "@/lib/provider-emails";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { format } from "date-fns";
+import { es } from "date-fns/locale";
 
 export function EmailImporter() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+  const [lastUpdated, setLastUpdated] = useState<string | null>(null);
+
+  useEffect(() => {
+    setLastUpdated(getLastUpdatedDate());
+  }, []);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -23,11 +30,9 @@ export function EmailImporter() {
         const data = new Uint8Array(e.target?.result as ArrayBuffer);
         const workbook = XLSX.read(data, { type: 'array' });
         
-        // Tomar la primera hoja
         const firstSheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[firstSheetName];
         
-        // Convertir a JSON
         const jsonData = XLSX.utils.sheet_to_json(worksheet) as any[];
 
         if (jsonData.length === 0) {
@@ -39,7 +44,6 @@ export function EmailImporter() {
           return;
         }
 
-        // Buscar las columnas requeridas ignorando mayúsculas/minúsculas
         const firstRow = jsonData[0];
         const keys = Object.keys(firstRow);
         
@@ -55,25 +59,17 @@ export function EmailImporter() {
           return;
         }
 
-        // 1. Obtener correos existentes
-        const existingEmails = getProviderEmails();
-        // 2. Crear una copia para fusionar
-        const emailMap: Record<string, string> = { ...existingEmails };
+        const emailMap: Record<string, string> = { ...getProviderEmails() };
         
-        let newEntriesCount = 0;
-        let updatedEntriesCount = 0;
-
         jsonData.forEach((row: any) => {
           const ruc = String(row[rucKey] || "").trim();
           const rawCorreo = String(row[emailKey] || "").trim();
 
           if (ruc && rawCorreo) {
-            // Obtener lista actual de correos para este RUC
             const currentEmails = emailMap[ruc] 
               ? emailMap[ruc].split(',').map(e => e.trim().toLowerCase()) 
               : [];
             
-            // Procesar los nuevos correos (pueden venir varios en la misma celda separados por coma o punto y coma)
             const incomingEmails = rawCorreo
               .split(/[;,]/)
               .map(e => e.trim().toLowerCase())
@@ -88,19 +84,13 @@ export function EmailImporter() {
             });
 
             if (wasChanged) {
-              if (emailMap[ruc]) {
-                updatedEntriesCount++;
-              } else {
-                newEntriesCount++;
-              }
-              // Guardar la lista combinada y limpia
               emailMap[ruc] = currentEmails.join(',');
             }
           }
         });
         
-        // 3. Guardar la lista fusionada
         saveProviderEmails(emailMap);
+        setLastUpdated(new Date().toISOString());
         
         toast({
           title: "Importación exitosa",
@@ -125,7 +115,6 @@ export function EmailImporter() {
 
     reader.readAsArrayBuffer(file);
 
-    // Reset para permitir subir el mismo archivo después si es necesario
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
@@ -135,14 +124,27 @@ export function EmailImporter() {
     fileInputRef.current?.click();
   };
 
+  const formatUpdateDate = (dateString: string) => {
+    try {
+      return format(new Date(dateString), "eeee d 'de' MMMM 'a las' HH:mm:ss", { locale: es });
+    } catch {
+      return dateString;
+    }
+  };
+
   return (
     <Card className="w-full max-w-2xl mx-auto mt-8">
       <CardHeader>
         <CardTitle>Importar Correos de Proveedores</CardTitle>
         <CardDescription>
-          Sube un archivo de <strong>Excel (.xlsx, .xls)</strong> o <strong>CSV</strong> con las columnas 'RUC' y 'CORREO'. 
-          Si un proveedor tiene varios correos, se añadirán todos a la lista.
+          Sube un archivo de <strong>Excel (.xlsx, .xls)</strong> o <strong>CSV</strong> con las columnas 'RUC' y 'CORREO'.
         </CardDescription>
+        {lastUpdated && (
+          <div className="flex items-center gap-2 mt-2 p-2 bg-primary/5 rounded-md border border-primary/10 text-xs text-primary font-medium">
+            <Clock className="h-3.5 w-3.5" />
+            <span>Última actualización: {formatUpdateDate(lastUpdated)}</span>
+          </div>
+        )}
       </CardHeader>
       <CardContent>
         <input

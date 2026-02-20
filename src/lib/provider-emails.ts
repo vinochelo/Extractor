@@ -1,6 +1,7 @@
 "use client";
 
 const LOCAL_STORAGE_KEY = "provider-emails";
+const LAST_UPDATED_KEY = "provider-emails-last-updated";
 
 /**
  * Guarda el mapa de RUCs y correos en el localStorage.
@@ -10,6 +11,8 @@ export const saveProviderEmails = (emails: Record<string, string>): void => {
   try {
     const jsonValue = JSON.stringify(emails);
     window.localStorage.setItem(LOCAL_STORAGE_KEY, jsonValue);
+    // Guardar también la fecha de actualización
+    window.localStorage.setItem(LAST_UPDATED_KEY, new Date().toISOString());
   } catch (error) {
     console.error("Error saving provider emails to localStorage:", error);
   }
@@ -21,11 +24,24 @@ export const saveProviderEmails = (emails: Record<string, string>): void => {
  */
 export const getProviderEmails = (): Record<string, string> => {
   try {
+    if (typeof window === "undefined") return {};
     const jsonValue = window.localStorage.getItem(LOCAL_STORAGE_KEY);
     return jsonValue ? JSON.parse(jsonValue) : {};
   } catch (error) {
     console.error("Error getting provider emails from localStorage:", error);
     return {};
+  }
+};
+
+/**
+ * Obtiene la fecha de la última importación exitosa.
+ */
+export const getLastUpdatedDate = (): string | null => {
+  try {
+    if (typeof window === "undefined") return null;
+    return window.localStorage.getItem(LAST_UPDATED_KEY);
+  } catch (error) {
+    return null;
   }
 };
 
