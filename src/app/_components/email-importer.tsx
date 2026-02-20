@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useRef } from "react";
@@ -61,22 +60,42 @@ export function EmailImporter() {
         // 2. Crear una copia para fusionar
         const emailMap: Record<string, string> = { ...existingEmails };
         
-        let newRowsCount = 0;
-        let updatedRowsCount = 0;
+        let newEntriesCount = 0;
+        let updatedEntriesCount = 0;
 
         jsonData.forEach((row: any) => {
           const ruc = String(row[rucKey] || "").trim();
-          const correo = String(row[emailKey] || "").trim();
+          const rawCorreo = String(row[emailKey] || "").trim();
 
-          if (ruc && correo) {
-            if (existingEmails[ruc]) {
-              if (existingEmails[ruc] !== correo) {
-                updatedRowsCount++;
+          if (ruc && rawCorreo) {
+            // Obtener lista actual de correos para este RUC
+            const currentEmails = emailMap[ruc] 
+              ? emailMap[ruc].split(',').map(e => e.trim().toLowerCase()) 
+              : [];
+            
+            // Procesar los nuevos correos (pueden venir varios en la misma celda separados por coma o punto y coma)
+            const incomingEmails = rawCorreo
+              .split(/[;,]/)
+              .map(e => e.trim().toLowerCase())
+              .filter(e => e !== "");
+
+            let wasChanged = false;
+            incomingEmails.forEach(email => {
+              if (!currentEmails.includes(email)) {
+                currentEmails.push(email);
+                wasChanged = true;
               }
-            } else {
-              newRowsCount++;
+            });
+
+            if (wasChanged) {
+              if (emailMap[ruc]) {
+                updatedEntriesCount++;
+              } else {
+                newEntriesCount++;
+              }
+              // Guardar la lista combinada y limpia
+              emailMap[ruc] = currentEmails.join(',');
             }
-            emailMap[ruc] = correo;
           }
         });
         
@@ -85,7 +104,7 @@ export function EmailImporter() {
         
         toast({
           title: "Importación exitosa",
-          description: `Se han añadido ${newRowsCount} nuevos y actualizado ${updatedRowsCount} correos. Total: ${Object.keys(emailMap).length} correos guardados.`,
+          description: `Se han procesado los datos. Total de proveedores con correo: ${Object.keys(emailMap).length}.`,
         });
       } catch (error: any) {
         toast({
@@ -121,7 +140,8 @@ export function EmailImporter() {
       <CardHeader>
         <CardTitle>Importar Correos de Proveedores</CardTitle>
         <CardDescription>
-          Sube un archivo de <strong>Excel (.xlsx, .xls)</strong> o <strong>CSV</strong> con las columnas 'RUC' y 'CORREO' para autocompletar destinatarios. Los datos se fusionarán con tu lista actual.
+          Sube un archivo de <strong>Excel (.xlsx, .xls)</strong> o <strong>CSV</strong> con las columnas 'RUC' y 'CORREO'. 
+          Si un proveedor tiene varios correos, se añadirán todos a la lista.
         </CardDescription>
       </CardHeader>
       <CardContent>
