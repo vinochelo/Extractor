@@ -39,3 +39,30 @@ export const getEmailByRuc = (ruc: string): string => {
     const emails = getProviderEmails();
     return emails[ruc] || "";
 };
+
+/**
+ * Combina un email opcional (ej. de un PDF) con los emails guardados para un RUC.
+ * @param ruc - El RUC del proveedor.
+ * @param pdfEmail - Email extraído del PDF (opcional).
+ * @returns Una cadena con todos los emails únicos separados por comas.
+ */
+export const getAllEmailsForProvider = (ruc: string, pdfEmail?: string): string => {
+    const allEmails = new Set<string>();
+    
+    // 1. Agregar email del PDF si existe
+    if (pdfEmail && pdfEmail.trim()) {
+        pdfEmail.split(/[;,]/).forEach(e => {
+            if (e.trim()) allEmails.add(e.toLowerCase().trim());
+        });
+    }
+    
+    // 2. Agregar emails del almacenamiento (importados de Excel)
+    const emailsFromStorage = getEmailByRuc(ruc);
+    if (emailsFromStorage) {
+        emailsFromStorage.split(/[;,]/).forEach(e => {
+            if (e.trim()) allEmails.add(e.toLowerCase().trim());
+        });
+    }
+    
+    return Array.from(allEmails).join(',');
+};

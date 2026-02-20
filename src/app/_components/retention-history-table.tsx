@@ -46,7 +46,7 @@ import type { RetentionRecord, RetentionStatus } from '@/lib/types';
 import { StatusSelector } from './status-selector';
 import { StatusBadge } from './status-badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { getEmailByRuc } from '@/lib/provider-emails';
+import { getAllEmailsForProvider } from '@/lib/provider-emails';
 
 // Helper to format keys for display
 const formatDisplayKey = (key: string): string => {
@@ -181,15 +181,25 @@ ${generateFormattedText(data)}
         if (!acc[key]) {
             acc[key] = {
                 providerName: item.razonSocialProveedor,
-                email: item.emailProveedor || getEmailByRuc(item.rucProveedor),
+                ruc: item.rucProveedor,
                 items: []
             };
         }
         acc[key].items.push(item);
         return acc;
-    }, {} as Record<string, { providerName: string; email: string; items: RetentionRecord[] }>);
+    }, {} as Record<string, { providerName: string; ruc: string; items: RetentionRecord[] }>);
 
     Object.values(groupedByProvider).forEach(group => {
+        // Combinar todos los correos posibles (PDFs + Excel)
+        const emailsSet = new Set<string>();
+        group.items.forEach(item => {
+            const combined = getAllEmailsForProvider(item.rucProveedor, item.emailProveedor);
+            combined.split(',').forEach(e => {
+                if(e.trim()) emailsSet.add(e.trim().toLowerCase());
+            });
+        });
+        
+        const providerEmails = Array.from(emailsSet).join(',');
         const subject = `Anulación de retenciones`;
         const itemsBody = group.items.map(item => 
             `Detalles de la retención:\n--------------------------------\n${generateFormattedText(item)}\n--------------------------------`
@@ -198,7 +208,7 @@ ${generateFormattedText(data)}
         const emailBody = `Estimados ${group.providerName},\n\nPor medio de la presente, solicitamos su apoyo revisando en el portal del SRI la anulación correspondiente a las siguientes retenciones:\n\n${itemsBody}\n\nAgradecemos su pronta gestión.`;
         
         const body = encodeURIComponent(emailBody);
-        window.open(`mailto:${group.email}?subject=${subject}&body=${body}`);
+        window.open(`mailto:${providerEmails}?subject=${subject}&body=${body}`);
     });
   };
 
@@ -219,7 +229,7 @@ ${formattedTextForEmail}
   };
 
   const handleRequestSriAcceptance = (data: RetentionRecord) => {
-    const providerEmail = data.emailProveedor || getEmailByRuc(data.rucProveedor);
+    const providerEmails = getAllEmailsForProvider(data.rucProveedor, data.emailProveedor);
     const formattedTextForEmail = generateFormattedText(data);
     const subject = `Anulación retención ${data.numeroRetencion}`;
     const emailBody = `Estimados ${data.razonSocialProveedor},
@@ -234,7 +244,7 @@ ${formattedTextForEmail}
 Agradecemos su pronta gestión.
 `;
     const body = encodeURIComponent(emailBody);
-    window.location.href = `mailto:${providerEmail}?subject=${subject}&body=${body}`;
+    window.location.href = `mailto:${providerEmails}?subject=${subject}&body=${body}`;
   };
 
   const handleRevertStatus = (retention: RetentionRecord) => {
@@ -396,11 +406,11 @@ Agradecemos su pronta gestión.
             </div>
         </TableCell>
         <TableCell className="font-mono p-2">{item.numeroRetencion}</TableCell>
-        <TableCell className="font-medium p-2 w-[250px] min-w-[200px] max-w-[300px] truncate">
+        <TableCell className="font-medium p-2 w-[300px] min-w-[200px] max-w-[400px] truncate">
           {item.razonSocialProveedor}
         </TableCell>
-        <TableCell className="p-2 w-[150px]">{item.numeroFactura}</TableCell>
-        <TableCell className="font-mono text-right p-2 w-[140px]">{item.valorRetencion}</TableCell>
+        <TableCell className="p-2 w-[120px]">{item.numeroFactura}</TableCell>
+        <TableCell className="font-mono text-right p-2 w-[180px]">{item.valorRetencion}</TableCell>
         <TableCell className="p-2 w-[150px]">
           <StatusSelector retention={item} />
         </TableCell>
@@ -409,7 +419,7 @@ Agradecemos su pronta gestión.
         <TableCell className="p-2 w-[160px]">
             <Button size="sm" variant="outline" onClick={() => handleVerifySri(item.numeroAutorizacion)}>
                 <ExternalLink className="mr-2 h-4 w-4" />
-                Verificar en SRI
+                Verificar SRI
             </Button>
         </TableCell>
         <TableCell className="p-2 w-[120px] text-center">
@@ -492,18 +502,18 @@ Agradecemos su pronta gestión.
             </div>
         </TableCell>
         <TableCell className="font-mono p-2">{item.numeroRetencion}</TableCell>
-        <TableCell className="font-medium p-2 w-[250px] min-w-[200px] max-w-[300px] truncate">
+        <TableCell className="font-medium p-2 w-[300px] min-w-[200px] max-w-[400px] truncate">
           {item.razonSocialProveedor}
         </TableCell>
-        <TableCell className="p-2 w-[150px]">{item.numeroFactura}</TableCell>
-        <TableCell className="font-mono text-right p-2 w-[140px]">{item.valorRetencion}</TableCell>
+        <TableCell className="p-2 w-[120px]">{item.numeroFactura}</TableCell>
+        <TableCell className="font-mono text-right p-2 w-[180px]">{item.valorRetencion}</TableCell>
         <TableCell className="p-2 w-[150px]"><StatusBadge status={item.estado} /></TableCell>
         <TableCell className="p-2 w-[160px]">{formatDate(item.createdAt)}</TableCell>
         <TableCell className="p-2 w-[120px]">{item.fechaEmision}</TableCell>
         <TableCell className="p-2 w-[160px]">
             <Button size="sm" variant="outline" onClick={() => handleVerifySri(item.numeroAutorizacion)}>
                 <ExternalLink className="mr-2 h-4 w-4" />
-                Verificar en SRI
+                Verificar SRI
             </Button>
         </TableCell>
         <TableCell className="p-2 w-[120px] text-center">
@@ -578,16 +588,16 @@ Agradecemos su pronta gestión.
                     aria-label="Seleccionar todo"
                   />
                 </TableHead>
-                <TableHead className="p-2 w-[130px]">Acciones Email/Copiar</TableHead>
+                <TableHead className="p-2 w-[130px]">Acciones</TableHead>
                 <TableHead className="p-2 w-[150px]">Nro. Retención</TableHead>
-                <TableHead className="p-2 w-[250px]">Razón Social Proveedor</TableHead>
-                <TableHead className="p-2 w-[150px]">Nro. Factura</TableHead>
-                <TableHead className="text-right p-2 w-[140px]">Valor Reten.</TableHead>
+                <TableHead className="p-2 w-[300px]">Razón Social Proveedor</TableHead>
+                <TableHead className="p-2 w-[120px]">Nro. Factura</TableHead>
+                <TableHead className="text-right p-2 w-[180px]">Valor Reten.</TableHead>
                 <TableHead className="p-2 w-[150px]">Estado</TableHead>
                 <TableHead className="p-2 w-[160px]">Fecha Creación</TableHead>
                 <TableHead className="p-2 w-[120px]">Fecha Emisión</TableHead>
-                <TableHead className="p-2 w-[160px]">Verificar SRI</TableHead>
-                <TableHead className="text-center p-2 w-[120px]">Otras Acciones</TableHead>
+                <TableHead className="p-2 w-[160px]">Acción SRI</TableHead>
+                <TableHead className="text-center p-2 w-[120px]">Mantenimiento</TableHead>
                 <TableHead className="p-2">Autorización</TableHead>
               </TableRow>
             </TableHeader>
@@ -614,14 +624,14 @@ Agradecemos su pronta gestión.
                         <TableRow>
                           <TableHead className="p-2 w-[130px]">Acciones</TableHead>
                           <TableHead className="p-2 w-[150px]">Nro. Retención</TableHead>
-                          <TableHead className="p-2 w-[250px]">Razón Social Proveedor</TableHead>
-                          <TableHead className="p-2 w-[150px]">Nro. Factura</TableHead>
-                          <TableHead className="text-right p-2 w-[140px]">Valor Reten.</TableHead>
+                          <TableHead className="p-2 w-[300px]">Razón Social Proveedor</TableHead>
+                          <TableHead className="p-2 w-[120px]">Nro. Factura</TableHead>
+                          <TableHead className="text-right p-2 w-[180px]">Valor Reten.</TableHead>
                           <TableHead className="p-2 w-[150px]">Estado</TableHead>
                           <TableHead className="p-2 w-[160px]">Fecha Creación</TableHead>
                           <TableHead className="p-2 w-[120px]">Fecha Emisión</TableHead>
-                          <TableHead className="p-2 w-[160px]">Verificar SRI</TableHead>
-                          <TableHead className="text-center p-2 w-[120px]">Otras Acciones</TableHead>
+                          <TableHead className="p-2 w-[160px]">Acción SRI</TableHead>
+                          <TableHead className="text-center p-2 w-[120px]">Mantenimiento</TableHead>
                           <TableHead className="p-2">Autorización</TableHead>
                         </TableRow>
                       </TableHeader>
@@ -651,14 +661,14 @@ Agradecemos su pronta gestión.
                         <TableRow>
                           <TableHead className="p-2 w-[130px]">Acciones</TableHead>
                           <TableHead className="p-2 w-[150px]">Nro. Retención</TableHead>
-                          <TableHead className="p-2 w-[250px]">Razón Social Proveedor</TableHead>
-                          <TableHead className="p-2 w-[150px]">Nro. Factura</TableHead>
-                          <TableHead className="text-right p-2 w-[140px]">Valor Reten.</TableHead>
+                          <TableHead className="p-2 w-[300px]">Razón Social Proveedor</TableHead>
+                          <TableHead className="p-2 w-[120px]">Nro. Factura</TableHead>
+                          <TableHead className="text-right p-2 w-[180px]">Valor Reten.</TableHead>
                           <TableHead className="p-2 w-[150px]">Estado</TableHead>
                           <TableHead className="p-2 w-[160px]">Fecha Creación</TableHead>
                           <TableHead className="p-2 w-[120px]">Fecha Emisión</TableHead>
-                          <TableHead className="p-2 w-[160px]">Verificar SRI</TableHead>
-                          <TableHead className="text-center p-2 w-[120px]">Otras Acciones</TableHead>
+                          <TableHead className="p-2 w-[160px]">Acción SRI</TableHead>
+                          <TableHead className="text-center p-2 w-[120px]">Mantenimiento</TableHead>
                           <TableHead className="p-2">Autorización</TableHead>
                         </TableRow>
                       </TableHeader>
