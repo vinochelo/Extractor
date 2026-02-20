@@ -3,12 +3,13 @@
 import { useRef, useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { FileSpreadsheet, Clock } from "lucide-react";
+import { FileSpreadsheet, Clock, CheckCircle2 } from "lucide-react";
 import * as XLSX from "xlsx";
 import { saveProviderEmails, getProviderEmails, getLastUpdatedDate } from "@/lib/provider-emails";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
+import { cn } from "@/lib/utils";
 
 export function EmailImporter() {
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -90,7 +91,8 @@ export function EmailImporter() {
         });
         
         saveProviderEmails(emailMap);
-        setLastUpdated(new Date().toISOString());
+        const now = new Date().toISOString();
+        setLastUpdated(now);
         
         toast({
           title: "Importación exitosa",
@@ -133,14 +135,20 @@ export function EmailImporter() {
   };
 
   return (
-    <Card className="w-full max-w-2xl mx-auto mt-8">
+    <Card className={cn(
+      "w-full max-w-2xl mx-auto mt-8 transition-all duration-500",
+      lastUpdated ? "border-green-500/40 shadow-md shadow-green-500/5 bg-green-500/[0.01]" : "border-border"
+    )}>
       <CardHeader>
-        <CardTitle>Importar Correos de Proveedores</CardTitle>
+        <CardTitle className="flex items-center gap-2">
+          Importar Correos de Proveedores
+          {lastUpdated && <CheckCircle2 className="h-5 w-5 text-green-600" />}
+        </CardTitle>
         <CardDescription>
           Sube un archivo de <strong>Excel (.xlsx, .xls)</strong> o <strong>CSV</strong> con las columnas 'RUC' y 'CORREO'.
         </CardDescription>
         {lastUpdated && (
-          <div className="flex items-center gap-2 mt-2 p-2 bg-primary/5 rounded-md border border-primary/10 text-xs text-primary font-medium">
+          <div className="flex items-center gap-2 mt-2 p-3 bg-green-500/10 rounded-md border border-green-500/20 text-xs text-green-700 font-semibold animate-in fade-in zoom-in duration-300">
             <Clock className="h-3.5 w-3.5" />
             <span>Última actualización: {formatUpdateDate(lastUpdated)}</span>
           </div>
@@ -154,9 +162,16 @@ export function EmailImporter() {
           className="hidden"
           accept=".xlsx, .xls, .csv"
         />
-        <Button onClick={handleImportClick}>
+        <Button 
+          onClick={handleImportClick}
+          variant={lastUpdated ? "outline" : "default"}
+          className={cn(
+            "w-full sm:w-auto transition-all",
+            lastUpdated && "border-green-500/50 text-green-700 hover:bg-green-500/10 hover:text-green-800"
+          )}
+        >
           <FileSpreadsheet className="mr-2 h-4 w-4" />
-          Importar archivo de Excel / CSV
+          {lastUpdated ? "Actualizar / Cambiar archivo de correos" : "Importar archivo de Excel / CSV"}
         </Button>
       </CardContent>
     </Card>
