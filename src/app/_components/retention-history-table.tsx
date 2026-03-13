@@ -41,7 +41,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
-import { ExternalLink, FileWarning, Archive, RotateCcw, Trash2, Mail, Send, Copy, CheckCircle2, RefreshCw, Clock, Timer, FileX } from 'lucide-react';
+import { ExternalLink, FileWarning, Archive, RotateCcw, Trash2, Mail, Send, Copy, CheckCircle2, RefreshCw, Clock, Timer, FileX, Zap } from 'lucide-react';
 import { format, formatDistanceToNow, addHours, startOfHour } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { RetentionRecord, RetentionStatus } from '@/lib/types';
@@ -85,13 +85,13 @@ export function RetentionHistoryTable() {
   const [selectedRetentions, setSelectedRetentions] = useState<Record<string, RetentionRecord>>({});
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [checkingSriId, setCheckingSriId] = useState<string | null>(null);
+  const [isBulkSyncing, setIsBulkSyncing] = useState(false);
   const [secondsUntilSync, setSecondsUntilSync] = useState(0);
   const [isMounted, setIsMounted] = useState(false);
   const lastSyncHourRef = useRef<number | null>(null);
 
   useEffect(() => {
     setIsMounted(true);
-    // Inicializamos la hora actual al montar para detectar el cambio "en punto"
     lastSyncHourRef.current = new Date().getHours();
   }, []);
 
@@ -116,7 +116,6 @@ export function RetentionHistoryTable() {
     return { activeRetenciones: active, anulatedRetenciones: anulated, noRecibidoRetenciones: noRecibido };
   }, [retenciones]);
 
-  // Lógica del Cronómetro "En Punto" y Sincronización Automática
   useEffect(() => {
     if (!isMounted) return;
     
@@ -130,12 +129,10 @@ export function RetentionHistoryTable() {
           return;
       }
       
-      // Calculamos la próxima hora en punto
       const nextHour = startOfHour(addHours(now, 1));
       const diffSeconds = Math.floor((nextHour.getTime() - now.getTime()) / 1000);
       setSecondsUntilSync(diffSeconds);
 
-      // Si ha cambiado la hora (estamos en el minuto 0 segundo 0 aprox)
       if (lastSyncHourRef.current !== null && lastSyncHourRef.current !== currentHour) {
           triggerBatchSync();
           lastSyncHourRef.current = currentHour;
@@ -148,7 +145,6 @@ export function RetentionHistoryTable() {
   const triggerBatchSync = async () => {
     if (!activeRetenciones || activeRetenciones.length === 0 || !user?.uid || !firestore) return;
 
-    // Seleccionamos las 5 que llevan más tiempo sin revisarse (orden ascendente de lastSriCheck)
     const itemsToSync = [...activeRetenciones]
       .sort((a, b) => {
         const dateA = a.lastSriCheck instanceof Date ? a.lastSriCheck : (a.lastSriCheck as any)?.toDate?.() || new Date(0);
@@ -163,8 +159,42 @@ export function RetentionHistoryTable() {
         description: `Actualizando estado actual de ${itemsToSync.length} comprobantes...` 
       });
       
-      // Ejecutamos las peticiones en paralelo (Batch de 5)
       await Promise.all(itemsToSync.map(item => handleCheckSriStatus(item, true)));
+    }
+  };
+
+  const handleSyncAll = async () => {
+    if (!activeRetenciones || activeRetenciones.length === 0 || !user?.uid || !firestore || isBulkSyncing) return;
+
+    setIsBulkSyncing(true);
+    toast({ 
+      title: 'Iniciando Consulta Masiva', 
+      description: `Consultando el estado de ${activeRetenciones.length} comprobantes en el SRI...` 
+    });
+
+    try {
+      // Procesar en lotes de 5 para no saturar la API ni el cliente
+      const chunks = [];
+      for (let i = 0; i < activeRetenciones.length; i += 5) {
+        chunks.push(activeRetenciones.slice(i, i + 5));
+      }
+
+      for (const chunk of chunks) {
+        await Promise.all(chunk.map(item => handleCheckSriStatus(item, true)));
+      }
+
+      toast({ 
+        title: 'Sincronización Masiva Completada', 
+        description: `Se han actualizado todos los comprobantes activos.` 
+      });
+    } catch (err) {
+      toast({ 
+        variant: 'destructive',
+        title: 'Error en Consulta Masiva', 
+        description: `Hubo un problema al consultar algunos registros.` 
+      });
+    } finally {
+      setIsBulkSyncing(false);
     }
   };
 
@@ -173,12 +203,9 @@ export function RetentionHistoryTable() {
     if (!silent) setCheckingSriId(item.id);
     
     try {
-      // Consulta directa a la API para traer información fresca
       const sriData = await consultarFacturaSRI(item.numeroAutorizacion);
-      
       const retentionRef = doc(firestore, `users/${user.uid}/retenciones`, item.id);
       
-      // Actualizamos Firestore con los datos nuevos y la nueva marca de tiempo de revisión
       updateDocumentNonBlocking(retentionRef, { 
         sriEstado: sriData.estado, 
         sriMensaje: sriData.mensaje || null, 
@@ -440,7 +467,7 @@ export function RetentionHistoryTable() {
                 <TooltipTrigger asChild>
                   <Button size="sm" variant="outline" className="h-6 text-[10px] font-bold px-2 rounded-md bg-background border-border/80 hover:border-primary/50 transition-all mt-1" onClick={() => handleCheckSriStatus(item)} disabled={checkingSriId === item.id}>
                     {checkingSriId === item.id ? <RefreshCw className="h-2.5 w-2.5 animate-spin" /> : <RefreshCw className="h-2.5 w-2.5 mr-1.5" />}
-                    REVISAR AUTORIZACIÓN EN EL SRI
+                    Revisar autorización en el SRI
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent side="top"><p>Revisar autorización en el SRI</p></TooltipContent>
@@ -525,11 +552,21 @@ export function RetentionHistoryTable() {
             <CardTitle className="text-3xl font-black tracking-tight">Seguimiento de Anulaciones</CardTitle>
             <CardDescription className="text-base font-semibold opacity-70">Sincroniza y gestiona comunicación con proveedores.</CardDescription>
           </div>
-          <div className="flex items-center gap-6 text-xs font-black text-primary bg-primary/10 border-2 border-primary/20 px-8 py-5 rounded-[1.5rem] shadow-md animate-in zoom-in duration-500">
-            <Timer className="h-10 w-10" />
-            <div className="flex flex-col">
-              <span className="text-[12px] uppercase tracking-widest opacity-60">SINCRONIZANDO CON SRI:</span>
-              <span className="text-4xl font-mono leading-none mt-1.5">{isMounted ? formatCountdown(secondsUntilSync) : '00:00:00'}</span>
+          <div className="flex items-center gap-4">
+            <Button 
+                onClick={handleSyncAll}
+                disabled={isBulkSyncing || !activeRetenciones?.length}
+                className="h-16 px-6 bg-emerald-600 hover:bg-emerald-700 text-white rounded-[1.5rem] shadow-lg shadow-emerald-500/20 font-black text-xs uppercase tracking-widest transition-all active:scale-95"
+            >
+                {isBulkSyncing ? <RefreshCw className="mr-2 h-5 w-5 animate-spin" /> : <Zap className="mr-2 h-5 w-5" />}
+                Sincronizar Todo
+            </Button>
+            <div className="flex items-center gap-6 text-xs font-black text-primary bg-primary/10 border-2 border-primary/20 px-8 py-5 rounded-[1.5rem] shadow-md animate-in zoom-in duration-500 min-w-[200px]">
+              <Timer className="h-10 w-10" />
+              <div className="flex flex-col">
+                <span className="text-[12px] uppercase tracking-widest opacity-60 leading-none">SINCRONIZANDO CON SRI:</span>
+                <span className="text-4xl font-mono leading-none mt-2">{isMounted ? formatCountdown(secondsUntilSync) : '00:00:00'}</span>
+              </div>
             </div>
           </div>
         </div>
