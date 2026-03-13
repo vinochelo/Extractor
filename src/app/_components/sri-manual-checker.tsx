@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { consultarFacturaSRI, SriResponse } from "@/lib/sri-service";
+import { consultarFacturaSRI } from "@/lib/sri-service";
 import { Loader2, Search, CheckCircle2, AlertCircle, Clock, ShieldCheck, Building2, FileText, CalendarDays, MessageSquare, Fingerprint } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -67,52 +67,14 @@ export function SriManualChecker() {
     }
   };
 
-  // Función de ayuda para buscar valores en objetos anidados de forma flexible
-  const findValue = (obj: any, keys: string[]) => {
-    if (!obj) return null;
-    
-    // Intentar en el nivel superior primero
-    for (const key of keys) {
-      if (obj[key]) return obj[key];
-    }
-
-    // Intentar dentro de debug_sri_response
-    const debug = obj.debug_sri_response;
-    if (debug) {
-      // Caso 1: Estructura directa o anidada en EstadoAutorizacionComprobante
-      const inner = debug.EstadoAutorizacionComprobante || debug.estadoAutorizacionComprobante;
-      if (inner) {
-        for (const key of keys) {
-          if (inner[key]) return inner[key];
-        }
-      }
-
-      // Caso 2: Estructura de array (autorizaciones.autorizacion)
-      const authList = debug.autorizaciones?.autorizacion;
-      if (Array.isArray(authList) && authList.length > 0) {
-        for (const key of keys) {
-          if (authList[0][key]) return authList[0][key];
-        }
-      } else if (authList) {
-        for (const key of keys) {
-          if (authList[key]) return authList[key];
-        }
-      }
-    }
-    
-    return null;
-  };
-
-  const tipoComprobante = findValue(result, ["tipoComprobante", "tipo_comprobante"]) || "No especificado";
+  // Extraer información directamente de la respuesta de la API según la estructura confirmada
+  const infoSRI = result?.debug_sri_response?.EstadoAutorizacionComprobante || {};
   
-  // Extraer RUC: Intentar API, si no, extraer de la Clave de Acceso (dígitos 11 al 23)
-  const rucEmisor = findValue(result, ["rucEmisor", "ruc_emisor"]) || (clave.length === 49 ? clave.substring(10, 23) : "No especificado");
-  
-  const fechaAutorizacion = findValue(result, ["fechaAutorizacion", "fecha_autorizacion", "fechaAutorizacionComprobante"]);
-  
-  const claveAccesoVerificada = findValue(result, ["claveAcceso", "clave_acceso"]) || result?.claveAcceso || clave;
-
-  const mensajes = findValue(result, ["mensajes", "mensaje", "informacionAdicional"]);
+  const tipoComprobante = infoSRI.tipoComprobante || result?.tipoComprobante || "No disponible";
+  const rucEmisor = infoSRI.rucEmisor || result?.rucEmisor || "No disponible";
+  const fechaAutorizacion = result?.fechaAutorizacion || infoSRI.fechaAutorizacion;
+  const claveAccesoVerificada = result?.claveAcceso || infoSRI.claveAcceso || clave;
+  const mensajes = infoSRI.mensajes || result?.mensaje;
 
   return (
     <Card className="w-full max-w-3xl mx-auto mt-8 border-2 shadow-xl rounded-2xl overflow-hidden">
@@ -182,17 +144,15 @@ export function SriManualChecker() {
                 <span>Estado: {result.estado || "No disponible"}</span>
               </div>
               
-              {(result.mensaje || mensajes) && (
+              {mensajes && (
                 <div className="text-sm font-medium flex gap-3 p-4 bg-background/50 rounded-xl border border-current/20">
                   <MessageSquare className="h-5 w-5 shrink-0 mt-0.5" />
                   <div>
                     <span className="font-bold opacity-70 block mb-1">Información Detallada:</span>
-                    <p>{result.mensaje || "Revisa los detalles técnicos del SRI a continuación."}</p>
-                    {mensajes && (
+                    <p>{typeof mensajes === 'string' ? mensajes : "El SRI ha devuelto detalles técnicos adicionales."}</p>
+                    {typeof mensajes !== 'string' && (
                        <div className="mt-2 text-xs font-mono opacity-80 bg-black/5 p-2 rounded">
-                          {typeof mensajes === 'string' 
-                            ? mensajes 
-                            : JSON.stringify(mensajes, null, 2)}
+                          {JSON.stringify(mensajes, null, 2)}
                        </div>
                     )}
                   </div>
