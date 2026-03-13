@@ -18,7 +18,7 @@ import { EmailImporter } from './email-importer';
 import { SriManualChecker } from './sri-manual-checker';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { consultarFacturaSRI } from '@/lib/sri-service';
-import { Sparkles, FileText, LayoutDashboard } from 'lucide-react';
+import { FileText, LayoutDashboard } from 'lucide-react';
 
 export function MainPage() {
   const { user, isUserLoading } = useUser();
@@ -143,44 +143,40 @@ export function MainPage() {
 
   return (
     <main className="min-h-screen bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-50 via-background to-background">
-      <div className="container mx-auto px-4 py-16 md:py-24 max-w-7xl">
-        <header className="text-center mb-20 relative animate-in fade-in slide-in-from-top-10 duration-1000">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/5 text-primary text-xs font-black uppercase tracking-[0.2em] mb-6 border border-primary/10 shadow-sm">
-            <Sparkles className="h-3 w-3" />
-            Control de Impuestos Inteligente
-          </div>
-          <h1 className="font-headline text-6xl md:text-8xl font-black tracking-tighter text-primary mb-6 filter drop-shadow-sm">
+      <div className="container mx-auto px-4 py-8 md:py-12 max-w-7xl">
+        <header className="text-center mb-10 relative animate-in fade-in slide-in-from-top-10 duration-1000">
+          <h1 className="font-headline text-5xl md:text-7xl font-black tracking-tighter text-primary mb-3 filter drop-shadow-sm">
             Status Retenciones
           </h1>
-          <p className="max-w-2xl mx-auto text-xl text-muted-foreground/80 font-semibold tracking-tight leading-relaxed">
-            Gestiona la anulación de comprobantes electrónicos del SRI con el poder de la Inteligencia Artificial.
+          <p className="max-w-xl mx-auto text-lg text-muted-foreground/80 font-semibold tracking-tight leading-tight">
+            Gestión inteligente de comprobantes electrónicos del SRI.
           </p>
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[140%] h-[140%] bg-primary/[0.02] blur-[120px] rounded-full -z-10" />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[120%] h-[120%] bg-primary/[0.02] blur-[100px] rounded-full -z-10" />
         </header>
 
-        <Tabs defaultValue="historial" className="space-y-16">
-          <div className="flex justify-center mb-12">
-            <TabsList className="grid w-full max-w-md grid-cols-2 h-14 p-1.5 bg-muted/40 backdrop-blur-md rounded-2xl border-2 border-border/50 shadow-xl">
-              <TabsTrigger value="historial" className="rounded-xl py-3 font-bold text-sm tracking-tight transition-all data-[state=active]:bg-background data-[state=active]:shadow-lg data-[state=active]:text-primary flex items-center gap-2">
-                <LayoutDashboard className="h-4 w-4" />
+        <Tabs defaultValue="historial" className="space-y-10">
+          <div className="flex justify-center mb-8">
+            <TabsList className="grid w-full max-w-sm grid-cols-2 h-12 p-1 bg-muted/40 backdrop-blur-md rounded-xl border border-border/50 shadow-lg">
+              <TabsTrigger value="historial" className="rounded-lg py-2 font-bold text-xs tracking-tight transition-all data-[state=active]:bg-background data-[state=active]:shadow-md data-[state=active]:text-primary flex items-center gap-2">
+                <LayoutDashboard className="h-3.5 w-3.5" />
                 Historial y Carga
               </TabsTrigger>
-              <TabsTrigger value="herramientas" className="rounded-xl py-3 font-bold text-sm tracking-tight transition-all data-[state=active]:bg-background data-[state=active]:shadow-lg data-[state=active]:text-primary flex items-center gap-2">
-                <FileText className="h-4 w-4" />
+              <TabsTrigger value="herramientas" className="rounded-lg py-2 font-bold text-xs tracking-tight transition-all data-[state=active]:bg-background data-[state=active]:shadow-md data-[state=active]:text-primary flex items-center gap-2">
+                <FileText className="h-3.5 w-3.5" />
                 Consultas Autorizaciones
               </TabsTrigger>
             </TabsList>
           </div>
 
-          <TabsContent value="historial" className="space-y-20 animate-in fade-in zoom-in-95 duration-500">
+          <TabsContent value="historial" className="space-y-12 animate-in fade-in zoom-in-95 duration-500">
             <RetentionHistoryTable key={historyKey} />
 
-            <section className="space-y-8">
-              <div className="text-center space-y-2">
-                <h2 className="text-3xl font-black tracking-tight">Nueva Extracción</h2>
-                <p className="text-muted-foreground font-medium">Sube el PDF de la retención para extraer sus datos automáticamente.</p>
+            <section className="space-y-6">
+              <div className="text-center space-y-1">
+                <h2 className="text-2xl font-black tracking-tight">Nueva Extracción</h2>
+                <p className="text-sm text-muted-foreground font-medium">Extrae datos automáticamente de tus archivos PDF.</p>
               </div>
-              <div className="bg-card/40 backdrop-blur-md p-10 rounded-[3rem] border-2 border-dashed border-primary/10 shadow-2xl transition-all hover:border-primary/30 group">
+              <div className="bg-card/40 backdrop-blur-md p-8 rounded-[2rem] border-2 border-dashed border-primary/10 shadow-xl transition-all hover:border-primary/30 group">
                 <PdfUploader
                   file={file}
                   onFileChange={handleFileChange}
@@ -193,23 +189,23 @@ export function MainPage() {
             </section>
 
             {extractedData && (
-              <div className="animate-in fade-in slide-in-from-bottom-10 duration-700">
+              <div className="animate-in fade-in slide-in-from-bottom-6 duration-700">
                 <ExtractionResultCard data={extractedData} />
               </div>
             )}
             
-            <section className="pt-8 border-t border-border/50">
+            <section className="pt-6 border-t border-border/40">
                <EmailImporter />
             </section>
           </TabsContent>
 
-          <TabsContent value="herramientas" className="space-y-12 animate-in fade-in slide-in-from-right-10 duration-500">
+          <TabsContent value="herramientas" className="space-y-8 animate-in fade-in slide-in-from-right-10 duration-500">
             <SriManualChecker />
           </TabsContent>
         </Tabs>
         
-        <footer className="mt-32 pt-12 border-t border-border/40 text-center">
-            <p className="text-xs font-bold text-muted-foreground/60 uppercase tracking-[0.3em]">Status Retenciones &copy; {new Date().getFullYear()} • Gestión SRI Eficiente</p>
+        <footer className="mt-20 pt-8 border-t border-border/30 text-center">
+            <p className="text-[10px] font-bold text-muted-foreground/50 uppercase tracking-[0.3em]">Status Retenciones &copy; {new Date().getFullYear()} • Gestión SRI Eficiente</p>
         </footer>
       </div>
     </main>

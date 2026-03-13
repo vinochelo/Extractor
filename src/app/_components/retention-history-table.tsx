@@ -40,7 +40,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
-import { ExternalLink, FileWarning, Archive, RotateCcw, Trash2, Mail, Send, Copy, Check, FileX, RefreshCw, Clock, Timer, CheckCircle2 } from 'lucide-react';
+import { ExternalLink, FileWarning, Archive, RotateCcw, Trash2, Mail, Send, Copy, CheckCircle2, RefreshCw, Clock, Timer, FileX } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { RetentionRecord, RetentionStatus } from '@/lib/types';
@@ -112,7 +112,6 @@ export function RetentionHistoryTable() {
     return { activeRetenciones: active, anulatedRetenciones: anulated, noRecibidoRetenciones: noRecibido };
   }, [retenciones]);
 
-  // Lógica del temporizador de sincronización
   useEffect(() => {
     const interval = setInterval(() => {
       if (!activeRetenciones || activeRetenciones.length === 0) {
@@ -147,7 +146,6 @@ export function RetentionHistoryTable() {
     return `${h}h ${m}m ${s}s`;
   };
 
-  // Sincronización automática cada 1 hora
   useEffect(() => {
     if (!activeRetenciones || activeRetenciones.length === 0 || !user?.uid || !firestore) return;
     const ONE_HOUR_MS = 60 * 60 * 1000;
@@ -406,7 +404,7 @@ export function RetentionHistoryTable() {
           <TableCell className="p-3 w-[100px] font-medium text-muted-foreground">{item.numeroFactura}</TableCell>
           <TableCell className="font-mono font-bold text-right p-3 w-[120px] text-primary">{item.valorRetencion}</TableCell>
           <TableCell className="p-3 w-[240px]">
-            <div className="flex flex-col items-center justify-center gap-1.5 py-1 px-3 bg-muted/20 rounded-2xl border border-border/40">
+            <div className="flex flex-col items-center justify-center gap-1 py-1 px-3 bg-muted/20 rounded-2xl border border-border/40">
               <div className={cn("text-xs font-black uppercase tracking-widest leading-none", getSriStatusColor(item.sriEstado))}>
                 {item.sriEstado || "NO CONSULTADO"}
               </div>
@@ -491,63 +489,63 @@ export function RetentionHistoryTable() {
 
   return (
     <TooltipProvider>
-    <Card className="w-full relative overflow-hidden border-2 shadow-2xl rounded-3xl bg-card/40 backdrop-blur-sm">
-      <div className="absolute top-5 right-8 flex items-center gap-2 text-[10px] font-black text-primary/70 bg-primary/10 border border-primary/20 px-3 py-1.5 rounded-2xl shadow-sm">
-        <Timer className="h-3.5 w-3.5" />
-        PRÓXIMA SINCRO: {isMounted ? formatCountdown(secondsUntilSync) : '--:--:--'}
+    <Card className="w-full relative overflow-hidden border-2 shadow-xl rounded-2xl bg-card/40 backdrop-blur-sm">
+      <div className="absolute top-4 right-6 flex items-center gap-1.5 text-[9px] font-black text-primary/70 bg-primary/10 border border-primary/20 px-2.5 py-1 rounded-full shadow-sm">
+        <Timer className="h-3 w-3" />
+        SINCRO: {isMounted ? formatCountdown(secondsUntilSync) : '--:--:--'}
       </div>
-      <CardHeader className="pb-6 pt-8 border-b">
-        <CardTitle className="text-2xl font-bold tracking-tight">Seguimiento de Anulaciones</CardTitle>
-        <CardDescription className="text-base font-medium">Sincroniza el estado del SRI y gestiona la comunicación con proveedores.</CardDescription>
+      <CardHeader className="pb-3 pt-4 border-b">
+        <CardTitle className="text-xl font-bold tracking-tight">Seguimiento de Anulaciones</CardTitle>
+        <CardDescription className="text-sm font-medium">Sincroniza y gestiona comunicación con proveedores.</CardDescription>
       </CardHeader>
-      <CardContent className="pt-8">
-        {error && <Alert variant="destructive" className="mb-6 rounded-2xl border-2"><FileWarning className="h-4 w-4" /><AlertTitle className="font-bold">Error de Red</AlertTitle><AlertDescription>{error.message}</AlertDescription></Alert>}
+      <CardContent className="pt-4">
+        {error && <Alert variant="destructive" className="mb-4 rounded-xl border-2"><FileWarning className="h-4 w-4" /><AlertTitle className="font-bold text-xs">Error de Red</AlertTitle><AlertDescription className="text-xs">{error.message}</AlertDescription></Alert>}
         
         <div className={cn(
-          "flex items-center gap-3 mb-6 p-4 bg-muted/30 border border-border/50 rounded-2xl transition-all",
+          "flex items-center gap-3 mb-4 p-2 bg-muted/30 border border-border/50 rounded-xl transition-all",
           selectedCount > 0 ? "translate-y-0 opacity-100" : "-translate-y-2 opacity-0 pointer-events-none"
         )}>
-            <div className="text-xs font-bold text-muted-foreground uppercase tracking-widest px-2">Gestión en Masa ({selectedCount}):</div>
-            <Button onClick={handleBulkShareForVoiding} size="sm" className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-md transition-all active:scale-95"><Mail className="mr-2 h-4 w-4" />Email Anular</Button>
-            <Button onClick={handleBulkRequestSriAcceptance} size="sm" className="bg-violet-700 hover:bg-violet-800 text-white rounded-xl shadow-md transition-all active:scale-95"><Send className="mr-2 h-4 w-4" />Solicitar Aceptación</Button>
-            <Button onClick={() => setSelectedRetentions({})} variant="ghost" size="sm" className="text-xs font-bold rounded-xl ml-auto">Limpiar Selección</Button>
+            <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-2">Masa ({selectedCount}):</div>
+            <Button onClick={handleBulkShareForVoiding} size="sm" className="h-8 bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-sm transition-all text-xs"><Mail className="mr-1.5 h-3.5 w-3.5" />Email Anular</Button>
+            <Button onClick={handleBulkRequestSriAcceptance} size="sm" className="h-8 bg-violet-700 hover:bg-violet-800 text-white rounded-lg shadow-sm transition-all text-xs"><Send className="mr-1.5 h-3.5 w-3.5" />Aceptación SRI</Button>
+            <Button onClick={() => setSelectedRetentions({})} variant="ghost" size="sm" className="h-8 text-[10px] font-bold rounded-lg ml-auto">Limpiar</Button>
         </div>
 
-        <div className="border rounded-2xl mb-8 overflow-hidden shadow-sm bg-background/60">
+        <div className="border rounded-xl mb-6 overflow-hidden shadow-sm bg-background/60">
           <Table>
-            <TableHeader className="bg-muted/50 border-b-2">
+            <TableHeader className="bg-muted/50 border-b">
               <TableRow className="hover:bg-transparent">
-                <TableHead className="w-[40px] p-3"><Checkbox checked={selectedCount > 0 && selectedCount === activeRetenciones.length} onCheckedChange={(value) => handleSelectAll(!!value)} className="rounded" /></TableHead>
-                <TableHead className="p-3 w-[120px] font-bold text-[10px] uppercase tracking-widest">Acciones</TableHead>
-                <TableHead className="p-3 w-[150px] font-bold text-[10px] uppercase tracking-widest">Retención</TableHead>
-                <TableHead className="p-3 w-[250px] font-bold text-[10px] uppercase tracking-widest">Proveedor</TableHead>
-                <TableHead className="p-3 w-[100px] font-bold text-[10px] uppercase tracking-widest">Factura</TableHead>
-                <TableHead className="text-right p-3 w-[120px] font-bold text-[10px] uppercase tracking-widest">Valor</TableHead>
-                <TableHead className="p-3 w-[240px] text-center font-bold text-[10px] uppercase tracking-widest">SRI Status</TableHead>
-                <TableHead className="p-3 w-[150px] text-center font-bold text-[10px] uppercase tracking-widest">App Status</TableHead>
-                <TableHead className="p-3 w-[130px] font-bold text-[10px] uppercase tracking-widest">Registro</TableHead>
-                <TableHead className="p-3 w-[100px] font-bold text-[10px] uppercase tracking-widest">Emisión</TableHead>
-                <TableHead className="p-3 w-[120px] font-bold text-[10px] uppercase tracking-widest">Consultas</TableHead>
-                <TableHead className="text-center p-3 w-[80px] font-bold text-[10px] uppercase tracking-widest">Ops</TableHead>
-                <TableHead className="p-3 font-bold text-[10px] uppercase tracking-widest">Autorización</TableHead>
+                <TableHead className="w-[40px] p-2"><Checkbox checked={selectedCount > 0 && selectedCount === activeRetenciones.length} onCheckedChange={(value) => handleSelectAll(!!value)} className="rounded" /></TableHead>
+                <TableHead className="p-2 w-[120px] font-bold text-[9px] uppercase tracking-widest">Acciones</TableHead>
+                <TableHead className="p-2 w-[150px] font-bold text-[9px] uppercase tracking-widest">Retención</TableHead>
+                <TableHead className="p-2 w-[250px] font-bold text-[9px] uppercase tracking-widest">Proveedor</TableHead>
+                <TableHead className="p-2 w-[100px] font-bold text-[9px] uppercase tracking-widest">Factura</TableHead>
+                <TableHead className="text-right p-2 w-[120px] font-bold text-[9px] uppercase tracking-widest">Valor</TableHead>
+                <TableHead className="p-2 w-[240px] text-center font-bold text-[9px] uppercase tracking-widest">SRI Status</TableHead>
+                <TableHead className="p-2 w-[150px] text-center font-bold text-[9px] uppercase tracking-widest">App Status</TableHead>
+                <TableHead className="p-2 w-[130px] font-bold text-[9px] uppercase tracking-widest">Registro</TableHead>
+                <TableHead className="p-2 w-[100px] font-bold text-[9px] uppercase tracking-widest">Emisión</TableHead>
+                <TableHead className="p-2 w-[120px] font-bold text-[9px] uppercase tracking-widest">Consultas</TableHead>
+                <TableHead className="text-center p-2 w-[80px] font-bold text-[9px] uppercase tracking-widest">Ops</TableHead>
+                <TableHead className="p-2 font-bold text-[9px] uppercase tracking-widest">Autorización</TableHead>
               </TableRow>
             </TableHeader>
-            <TableBody className="bg-background/20 backdrop-blur-sm">{loading ? Array.from({ length: 4 }).map((_, i) => <TableRow key={i}><TableCell colSpan={13}><Skeleton className="h-12 w-full my-1 rounded-xl" /></TableCell></TableRow>) : renderTableRows(activeRetenciones)}</TableBody>
+            <TableBody className="bg-background/20 backdrop-blur-sm">{loading ? Array.from({ length: 4 }).map((_, i) => <TableRow key={i}><TableCell colSpan={13}><Skeleton className="h-10 w-full my-1 rounded-lg" /></TableCell></TableRow>) : renderTableRows(activeRetenciones)}</TableBody>
           </Table>
         </div>
 
-        <div className="space-y-4">
+        <div className="space-y-3">
           {noRecibidoRetenciones.length > 0 && (
             <Accordion type="single" collapsible className="w-full">
-              <AccordionItem value="no-recibidas" className="border-2 rounded-2xl px-6 bg-rose-500/[0.03] border-rose-500/10 hover:border-rose-500/20 transition-all">
-                <AccordionTrigger className="hover:no-underline py-5">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-rose-500/10 rounded-lg"><FileX className="h-5 w-5 text-rose-600" /></div>
-                    <span className="font-bold text-rose-950 uppercase tracking-tight">Retenciones No Recibidas ({noRecibidoRetenciones.length})</span>
+              <AccordionItem value="no-recibidas" className="border rounded-xl px-4 bg-rose-500/[0.02] border-rose-500/10 hover:border-rose-500/20 transition-all">
+                <AccordionTrigger className="hover:no-underline py-3">
+                  <div className="flex items-center gap-2">
+                    <FileX className="h-4 w-4 text-rose-600" />
+                    <span className="font-bold text-xs text-rose-950 uppercase tracking-tight">No Recibidas ({noRecibidoRetenciones.length})</span>
                   </div>
                 </AccordionTrigger>
-                <AccordionContent className="pb-6">
-                  <div className="border rounded-xl bg-background/80 shadow-inner overflow-hidden">
+                <AccordionContent className="pb-4">
+                  <div className="border rounded-lg bg-background/80 shadow-inner overflow-hidden">
                     <Table>
                       <TableBody>
                         {renderArchivedTableRows(noRecibidoRetenciones)}
@@ -561,15 +559,15 @@ export function RetentionHistoryTable() {
 
           {anulatedRetenciones.length > 0 && (
             <Accordion type="single" collapsible className="w-full">
-              <AccordionItem value="anuladas" className="border-2 rounded-2xl px-6 bg-emerald-500/[0.03] border-emerald-500/10 hover:border-emerald-500/20 transition-all">
-                <AccordionTrigger className="hover:no-underline py-5">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-emerald-500/10 rounded-lg"><Archive className="h-5 w-5 text-emerald-600" /></div>
-                    <span className="font-bold text-emerald-950 uppercase tracking-tight">Retenciones Anuladas y Archivadas ({anulatedRetenciones.length})</span>
+              <AccordionItem value="anuladas" className="border rounded-xl px-4 bg-emerald-500/[0.02] border-emerald-500/10 hover:border-emerald-500/20 transition-all">
+                <AccordionTrigger className="hover:no-underline py-3">
+                  <div className="flex items-center gap-2">
+                    <Archive className="h-4 w-4 text-emerald-600" />
+                    <span className="font-bold text-xs text-emerald-950 uppercase tracking-tight">Archivadas ({anulatedRetenciones.length})</span>
                   </div>
                 </AccordionTrigger>
-                <AccordionContent className="pb-6">
-                  <div className="border rounded-xl bg-background/80 shadow-inner overflow-hidden">
+                <AccordionContent className="pb-4">
+                  <div className="border rounded-lg bg-background/80 shadow-inner overflow-hidden">
                     <Table>
                       <TableBody>
                         {renderArchivedTableRows(anulatedRetenciones)}
@@ -585,17 +583,17 @@ export function RetentionHistoryTable() {
     </Card>
     
     <AlertDialog open={!!retentionToDelete} onOpenChange={(open) => !open && setRetentionToDelete(null)}>
-        <AlertDialogContent className="rounded-3xl border-2">
+        <AlertDialogContent className="rounded-2xl border-2">
             <AlertDialogHeader>
-                <AlertDialogTitle className="text-xl font-bold">¿Eliminar registro permanentemente?</AlertDialogTitle>
-                <AlertDialogDescription className="text-base">
-                    La retención <span className="font-mono font-bold text-primary">{retentionToDelete?.numeroRetencion}</span> de <span className="font-bold">{retentionToDelete?.razonSocialProveedor}</span> será eliminada de tu historial local de forma irreversible.
+                <AlertDialogTitle className="text-lg font-bold">¿Eliminar registro?</AlertDialogTitle>
+                <AlertDialogDescription className="text-sm">
+                    La retención <span className="font-mono font-bold text-primary">{retentionToDelete?.numeroRetencion}</span> será eliminada de forma irreversible.
                 </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter className="gap-2">
-                <AlertDialogCancel onClick={() => setRetentionToDelete(null)} className="rounded-xl font-bold">Cancelar</AlertDialogCancel>
-                <AlertDialogAction onClick={handleDelete} className="bg-destructive text-white hover:bg-destructive/90 rounded-xl font-bold px-6">
-                    Eliminar ahora
+                <AlertDialogCancel onClick={() => setRetentionToDelete(null)} className="rounded-lg font-bold text-xs">Cancelar</AlertDialogCancel>
+                <AlertDialogAction onClick={handleDelete} className="bg-destructive text-white hover:bg-destructive/90 rounded-lg font-bold px-4 text-xs">
+                    Eliminar
                 </AlertDialogAction>
             </AlertDialogFooter>
         </AlertDialogContent>
