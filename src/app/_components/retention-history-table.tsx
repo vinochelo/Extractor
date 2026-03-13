@@ -413,7 +413,7 @@ export function RetentionHistoryTable() {
                   </Tooltip>
               </div>
           </TableCell>
-          <TableCell className="font-mono font-bold p-2 text-sm w-[130px]">{item.numeroRetencion}</TableCell>
+          <TableCell className="font-mono font-bold p-2 text-sm w-[160px] whitespace-nowrap">{item.numeroRetencion}</TableCell>
           <TableCell className="font-semibold p-2 w-[150px]"><div className="truncate text-sm" title={item.razonSocialProveedor}>{item.razonSocialProveedor}</div></TableCell>
           <TableCell className="p-2 w-[110px] font-medium text-muted-foreground text-sm">{item.numeroFactura}</TableCell>
           <TableCell className="font-mono font-bold text-right p-2 w-[110px] text-primary text-sm">{item.valorRetencion}</TableCell>
@@ -474,7 +474,7 @@ export function RetentionHistoryTable() {
              <Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg" onClick={() => handleRequestSriAcceptance(item)}><Send className="h-4 w-4 text-violet-700" /></Button>
            </div>
          </TableCell>
-        <TableCell className="font-mono p-2 text-[12px] font-bold">{item.numeroRetencion}</TableCell>
+        <TableCell className="font-mono p-2 text-[12px] font-bold whitespace-nowrap">{item.numeroRetencion}</TableCell>
         <TableCell className="font-semibold p-2 text-[12px] truncate max-w-[150px]">{item.razonSocialProveedor}</TableCell>
         <TableCell className="p-2 text-[12px] text-muted-foreground">{item.numeroFactura}</TableCell>
         <TableCell className="font-mono font-bold text-right p-2 text-[12px]">{item.valorRetencion}</TableCell>
@@ -545,7 +545,7 @@ export function RetentionHistoryTable() {
               <TableRow className="hover:bg-transparent">
                 <TableHead className="w-[45px] p-2 text-center"><Checkbox checked={selectedCount > 0 && selectedCount === activeRetenciones.length} onCheckedChange={(value) => handleSelectAll(!!value)} className="rounded" /></TableHead>
                 <TableHead className="p-2 w-[125px] font-black text-[10px] uppercase tracking-widest px-4">Acciones</TableHead>
-                <TableHead className="p-2 w-[130px] font-black text-[10px] uppercase tracking-widest">Retención</TableHead>
+                <TableHead className="p-2 w-[160px] font-black text-[10px] uppercase tracking-widest">Retención</TableHead>
                 <TableHead className="p-2 w-[150px] font-black text-[10px] uppercase tracking-widest">Proveedor</TableHead>
                 <TableHead className="p-2 w-[115px] font-black text-[10px] uppercase tracking-widest">Factura</TableHead>
                 <TableHead className="text-right p-2 w-[115px] font-black text-[10px] uppercase tracking-widest">Valor</TableHead>
