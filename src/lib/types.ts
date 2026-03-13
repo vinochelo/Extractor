@@ -19,4 +19,7 @@ export type RetentionRecord = RetentionData & {
   createdAt: Timestamp | Date;
   userId: string;
   estado: RetentionStatus;
+  sriEstado?: string;
+  sriMensaje?: string;
+  lastSriCheck?: Timestamp | Date;
 };

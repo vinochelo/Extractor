@@ -40,15 +40,16 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
-import { ExternalLink, FileWarning, Archive, RotateCcw, Trash2, Mail, Send, Copy, Check, FileX } from 'lucide-react';
+import { ExternalLink, FileWarning, Archive, RotateCcw, Trash2, Mail, Send, Copy, Check, FileX, RefreshCw } from 'lucide-react';
 import { format } from 'date-fns';
 import type { RetentionRecord, RetentionStatus } from '@/lib/types';
 import { StatusSelector } from './status-selector';
 import { StatusBadge } from './status-badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { getAllEmailsForProvider } from '@/lib/provider-emails';
+import { consultarFacturaSRI } from '@/lib/sri-service';
+import { cn } from '@/lib/utils';
 
-// Helper to format keys for display
 const formatDisplayKey = (key: string): string => {
     const keyMap: { [key: string]: string } = {
       numeroRetencion: "Nro. Retención",
@@ -81,7 +82,7 @@ export function RetentionHistoryTable() {
   const [retentionToDelete, setRetentionToDelete] = useState<RetentionRecord | null>(null);
   const [selectedRetentions, setSelectedRetentions] = useState<Record<string, RetentionRecord>>({});
   const [copiedId, setCopiedId] = useState<string | null>(null);
-
+  const [checkingSriId, setCheckingSriId] = useState<string | null>(null);
 
   const retencionesQuery = useMemoFirebase(() => {
     if (!firestore || !user?.uid) return null;
@@ -103,7 +104,6 @@ export function RetentionHistoryTable() {
     const noRecibido = retenciones?.filter(r => r.estado === 'No Recibido') || [];
     return { activeRetenciones: active, anulatedRetenciones: anulated, noRecibidoRetenciones: noRecibido };
   }, [retenciones]);
-
 
   const selectedCount = Object.keys(selectedRetentions).length;
 
@@ -130,7 +130,6 @@ export function RetentionHistoryTable() {
         setSelectedRetentions({});
     }
   };
-
 
   const generateFormattedText = (data: RetentionRecord) => {
     return desiredOrder
@@ -190,7 +189,6 @@ ${generateFormattedText(data)}
     }, {} as Record<string, { providerName: string; ruc: string; items: RetentionRecord[] }>);
 
     Object.values(groupedByProvider).forEach(group => {
-        // Combinar todos los correos posibles (PDFs + Excel)
         const emailsSet = new Set<string>();
         group.items.forEach(item => {
             const combined = getAllEmailsForProvider(item.rucProveedor, item.emailProveedor);
@@ -247,6 +245,35 @@ Agradecemos su pronta gestión.
     window.location.href = `mailto:${providerEmails}?subject=${subject}&body=${body}`;
   };
 
+  const handleCheckSriStatus = async (item: RetentionRecord) => {
+    if (!firestore || !user?.uid) return;
+    
+    setCheckingSriId(item.id);
+    try {
+      const sriData = await consultarFacturaSRI(item.numeroAutorizacion);
+      const retentionRef = doc(firestore, `users/${user.uid}/retenciones`, item.id);
+      
+      updateDocumentNonBlocking(retentionRef, { 
+        sriEstado: sriData.estado,
+        sriMensaje: sriData.mensaje || null,
+        lastSriCheck: new Date()
+      });
+
+      toast({
+        title: 'SRI Actualizado',
+        description: `Estado SRI para ${item.numeroRetencion}: ${sriData.estado}`,
+      });
+    } catch (err: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Error SRI',
+        description: 'No se pudo consultar el estado del SRI en este momento.',
+      });
+    } finally {
+      setCheckingSriId(null);
+    }
+  };
+
   const handleRevertStatus = (retention: RetentionRecord) => {
     if (!firestore || !user?.uid) return;
 
@@ -290,65 +317,40 @@ Agradecemos su pronta gestión.
     });
   };
 
-
   const formatDate = (date: any) => {
     if (!date) return 'N/A';
-    if (date.toDate) {
-      // Firebase Timestamp
-      return format(date.toDate(), 'dd/MM/yyyy HH:mm');
-    }
+    if (date.toDate) return format(date.toDate(), 'dd/MM/yyyy HH:mm');
     try {
-      // For strings or numbers from client side generation
       return format(new Date(date), 'dd/MM/yyyy HH:mm');
     } catch {
       return 'Fecha inválida';
     }
   };
 
+  const getSriStatusColor = (estado?: string) => {
+    if (!estado) return "text-muted-foreground";
+    const status = estado.toUpperCase();
+    if (status === "AUTORIZADO") return "text-green-600 font-bold";
+    if (status === "POR PROCESAR") return "text-yellow-600 font-bold";
+    if (status === "NO AUTORIZADO" || status === "RECHAZADO" || status === "FUERA DE RANGO") return "text-destructive font-bold";
+    return "text-foreground font-semibold";
+  };
+
   const renderSkeleton = () =>
     Array.from({ length: 3 }).map((_, i) => (
       <TableRow key={i}>
         <TableCell className="p-2"><Skeleton className="h-4 w-4" /></TableCell>
-        <TableCell className="py-2 px-2">
-            <div className="flex items-center gap-1">
-                <Skeleton className="h-9 w-9" />
-                <Skeleton className="h-9 w-9" />
-                <Skeleton className="h-9 w-9" />
-            </div>
-        </TableCell>
-        <TableCell className="py-2 px-2">
-          <Skeleton className="h-4 w-24" />
-        </TableCell>
-        <TableCell className="py-2 px-2">
-          <Skeleton className="h-4 w-40" />
-        </TableCell>
-        <TableCell className="py-2 px-2">
-          <Skeleton className="h-4 w-20" />
-        </TableCell>
-        <TableCell className="py-2 px-2">
-          <Skeleton className="h-4 w-20" />
-        </TableCell>
-        <TableCell className="py-2 px-2">
-          <Skeleton className="h-6 w-24" />
-        </TableCell>
-        <TableCell className="py-2 px-2">
-          <Skeleton className="h-4 w-28" />
-        </TableCell>
-        <TableCell className="py-2 px-2">
-          <Skeleton className="h-4 w-28" />
-        </TableCell>
-        <TableCell className="py-2 px-2">
-            <div className="flex items-center justify-end gap-2">
-                <Skeleton className="h-9 w-9" />
-                <Skeleton className="h-9 w-9" />
-            </div>
-        </TableCell>
-        <TableCell className="py-2 px-2">
-          <Skeleton className="h-9 w-32" />
-        </TableCell>
-        <TableCell className="py-2 px-2">
-          <Skeleton className="h-4 w-32" />
-        </TableCell>
+        <TableCell className="py-2 px-2"><Skeleton className="h-9 w-24" /></TableCell>
+        <TableCell className="py-2 px-2"><Skeleton className="h-4 w-24" /></TableCell>
+        <TableCell className="py-2 px-2"><Skeleton className="h-4 w-40" /></TableCell>
+        <TableCell className="py-2 px-2"><Skeleton className="h-4 w-20" /></TableCell>
+        <TableCell className="py-2 px-2"><Skeleton className="h-4 w-20" /></TableCell>
+        <TableCell className="py-2 px-2"><Skeleton className="h-6 w-24" /></TableCell>
+        <TableCell className="py-2 px-2"><Skeleton className="h-4 w-28" /></TableCell>
+        <TableCell className="py-2 px-2"><Skeleton className="h-4 w-28" /></TableCell>
+        <TableCell className="py-2 px-2"><Skeleton className="h-9 w-32" /></TableCell>
+        <TableCell className="py-2 px-2"><Skeleton className="h-4 w-24" /></TableCell>
+        <TableCell className="py-2 px-2"><Skeleton className="h-4 w-32" /></TableCell>
       </TableRow>
     ));
 
@@ -356,7 +358,7 @@ Agradecemos su pronta gestión.
     if (items.length === 0) {
       return (
         <TableRow>
-          <TableCell colSpan={12} className="h-24 text-center">
+          <TableCell colSpan={13} className="h-24 text-center">
             No hay retenciones en esta categoría.
           </TableCell>
         </TableRow>
@@ -379,9 +381,7 @@ Agradecemos su pronta gestión.
                             <Mail className="h-4 w-4" />
                         </Button>
                     </TooltipTrigger>
-                    <TooltipContent>
-                        <p>Email para Anular</p>
-                    </TooltipContent>
+                    <TooltipContent><p>Email para Anular</p></TooltipContent>
                 </Tooltip>
                 <Tooltip>
                     <TooltipTrigger asChild>
@@ -389,9 +389,7 @@ Agradecemos su pronta gestión.
                             <Send className="h-4 w-4" />
                         </Button>
                     </TooltipTrigger>
-                    <TooltipContent>
-                        <p>Solicitar Aceptación SRI</p>
-                    </TooltipContent>
+                    <TooltipContent><p>Solicitar Aceptación SRI</p></TooltipContent>
                 </Tooltip>
                 <Tooltip>
                     <TooltipTrigger asChild>
@@ -399,58 +397,53 @@ Agradecemos su pronta gestión.
                             {copiedId === item.id ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
                         </Button>
                     </TooltipTrigger>
-                    <TooltipContent>
-                        <p>Copiar Datos</p>
-                    </TooltipContent>
+                    <TooltipContent><p>Copiar Datos</p></TooltipContent>
                 </Tooltip>
             </div>
         </TableCell>
         <TableCell className="font-mono p-2">{item.numeroRetencion}</TableCell>
-        <TableCell className="font-medium p-2 w-[300px] min-w-[200px] max-w-[400px] truncate">
-          {item.razonSocialProveedor}
-        </TableCell>
-        <TableCell className="p-2 w-[120px]">{item.numeroFactura}</TableCell>
-        <TableCell className="font-mono text-right p-2 w-[180px]">{item.valorRetencion}</TableCell>
+        <TableCell className="font-medium p-2 w-[250px] truncate">{item.razonSocialProveedor}</TableCell>
+        <TableCell className="p-2 w-[100px]">{item.numeroFactura}</TableCell>
+        <TableCell className="font-mono text-right p-2 w-[140px]">{item.valorRetencion}</TableCell>
+        <TableCell className="p-2 w-[150px]"><StatusSelector retention={item} /></TableCell>
         <TableCell className="p-2 w-[150px]">
-          <StatusSelector retention={item} />
-        </TableCell>
-        <TableCell className="p-2 w-[160px]">{formatDate(item.createdAt)}</TableCell>
-        <TableCell className="p-2 w-[120px]">{item.fechaEmision}</TableCell>
-        <TableCell className="p-2 w-[160px]">
-            <Button size="sm" variant="outline" onClick={() => handleVerifySri(item.numeroAutorizacion)}>
-                <ExternalLink className="mr-2 h-4 w-4" />
-                Verificar SRI
+          <div className="flex flex-col gap-1">
+            <div className={cn("text-xs uppercase truncate", getSriStatusColor(item.sriEstado))}>
+              {item.sriEstado || "NO CONSULTADO"}
+            </div>
+            <Button 
+              size="sm" 
+              variant="outline" 
+              className="h-7 text-[10px] px-2"
+              onClick={() => handleCheckSriStatus(item)}
+              disabled={checkingSriId === item.id}
+            >
+              {checkingSriId === item.id ? <RefreshCw className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3 mr-1" />}
+              ACTUALIZAR SRI
             </Button>
-        </TableCell>
-        <TableCell className="p-2 w-[120px] text-center">
-          <div className="flex items-center justify-center gap-1">
-            {item.estado !== 'Solicitado' && (
-                <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button size="icon" variant="ghost" onClick={() => handleRevertStatus(item)}>
-                          <RotateCcw className="h-4 w-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Revertir Estado</p>
-                    </TooltipContent>
-                </Tooltip>
-            )}
-            <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button size="icon" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => setRetentionToDelete(item)}>
-                      <Trash2 className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Eliminar</p>
-                </TooltipContent>
-            </Tooltip>
           </div>
         </TableCell>
-        <TableCell className="p-2">
-            <span className="font-mono text-xs">{item.numeroAutorizacion}</span>
+        <TableCell className="p-2 w-[140px] text-xs">{formatDate(item.createdAt)}</TableCell>
+        <TableCell className="p-2 w-[100px] text-xs">{item.fechaEmision}</TableCell>
+        <TableCell className="p-2 w-[140px]">
+            <Button size="sm" variant="outline" className="text-xs h-8" onClick={() => handleVerifySri(item.numeroAutorizacion)}>
+                <ExternalLink className="mr-1 h-3 w-3" />
+                VERIFICAR
+            </Button>
         </TableCell>
+        <TableCell className="p-2 w-[100px] text-center">
+          <div className="flex items-center justify-center gap-1">
+            {item.estado !== 'Solicitado' && (
+              <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => handleRevertStatus(item)}>
+                  <RotateCcw className="h-4 w-4" />
+              </Button>
+            )}
+            <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => setRetentionToDelete(item)}>
+                <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
+        </TableCell>
+        <TableCell className="p-2"><span className="font-mono text-[10px] break-all">{item.numeroAutorizacion}</span></TableCell>
       </TableRow>
     ));
   };
@@ -459,7 +452,7 @@ Agradecemos su pronta gestión.
     if (items.length === 0) {
       return (
         <TableRow>
-          <TableCell colSpan={11} className="h-24 text-center">
+          <TableCell colSpan={13} className="h-24 text-center">
             No hay retenciones en esta categoría.
           </TableCell>
         </TableRow>
@@ -469,80 +462,50 @@ Agradecemos su pronta gestión.
       <TableRow key={item.id}>
          <TableCell className="p-2">
             <div className="flex items-center gap-1">
-                <Tooltip>
-                    <TooltipTrigger asChild>
-                        <Button variant="ghost" size="icon" onClick={() => handleShareForVoiding(item)} disabled={selectedCount > 0}>
-                            <Mail className="h-4 w-4" />
-                        </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                        <p>Email para Anular</p>
-                    </TooltipContent>
-                </Tooltip>
-                <Tooltip>
-                    <TooltipTrigger asChild>
-                        <Button variant="ghost" size="icon" onClick={() => handleRequestSriAcceptance(item)} disabled={selectedCount > 0}>
-                            <Send className="h-4 w-4" />
-                        </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                        <p>Solicitar Aceptación SRI</p>
-                    </TooltipContent>
-                </Tooltip>
-                <Tooltip>
-                    <TooltipTrigger asChild>
-                        <Button variant="ghost" size="icon" onClick={() => handleCopy(item)}>
-                            {copiedId === item.id ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
-                        </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                        <p>Copiar Datos</p>
-                    </TooltipContent>
-                </Tooltip>
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleShareForVoiding(item)}><Mail className="h-4 w-4" /></Button>
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleRequestSriAcceptance(item)}><Send className="h-4 w-4" /></Button>
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleCopy(item)}>
+                    {copiedId === item.id ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+                </Button>
             </div>
         </TableCell>
         <TableCell className="font-mono p-2">{item.numeroRetencion}</TableCell>
-        <TableCell className="font-medium p-2 w-[300px] min-w-[200px] max-w-[400px] truncate">
-          {item.razonSocialProveedor}
-        </TableCell>
-        <TableCell className="p-2 w-[120px]">{item.numeroFactura}</TableCell>
-        <TableCell className="font-mono text-right p-2 w-[180px]">{item.valorRetencion}</TableCell>
+        <TableCell className="font-medium p-2 w-[250px] truncate">{item.razonSocialProveedor}</TableCell>
+        <TableCell className="p-2 w-[100px]">{item.numeroFactura}</TableCell>
+        <TableCell className="font-mono text-right p-2 w-[140px]">{item.valorRetencion}</TableCell>
         <TableCell className="p-2 w-[150px]"><StatusBadge status={item.estado} /></TableCell>
-        <TableCell className="p-2 w-[160px]">{formatDate(item.createdAt)}</TableCell>
-        <TableCell className="p-2 w-[120px]">{item.fechaEmision}</TableCell>
-        <TableCell className="p-2 w-[160px]">
-            <Button size="sm" variant="outline" onClick={() => handleVerifySri(item.numeroAutorizacion)}>
-                <ExternalLink className="mr-2 h-4 w-4" />
-                Verificar SRI
+        <TableCell className="p-2 w-[150px]">
+          <div className="flex flex-col gap-1">
+            <div className={cn("text-xs uppercase truncate", getSriStatusColor(item.sriEstado))}>
+              {item.sriEstado || "NO CONSULTADO"}
+            </div>
+            <Button 
+              size="sm" 
+              variant="outline" 
+              className="h-7 text-[10px] px-2"
+              onClick={() => handleCheckSriStatus(item)}
+              disabled={checkingSriId === item.id}
+            >
+              {checkingSriId === item.id ? <RefreshCw className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3 mr-1" />}
+              ACTUALIZAR SRI
+            </Button>
+          </div>
+        </TableCell>
+        <TableCell className="p-2 w-[140px] text-xs">{formatDate(item.createdAt)}</TableCell>
+        <TableCell className="p-2 w-[100px] text-xs">{item.fechaEmision}</TableCell>
+        <TableCell className="p-2 w-[140px]">
+            <Button size="sm" variant="outline" className="text-xs h-8" onClick={() => handleVerifySri(item.numeroAutorizacion)}>
+                <ExternalLink className="mr-1 h-3 w-3" />
+                VERIFICAR
             </Button>
         </TableCell>
-        <TableCell className="p-2 w-[120px] text-center">
+        <TableCell className="p-2 w-[100px] text-center">
             <div className="flex items-center justify-center gap-1">
-                <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button size="icon" variant="ghost" onClick={() => handleRevertStatus(item)}>
-                          <RotateCcw className="h-4 w-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Revertir a Pendiente Anular</p>
-                    </TooltipContent>
-                </Tooltip>
-                <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button size="icon" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => setRetentionToDelete(item)}>
-                          <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Eliminar</p>
-                    </TooltipContent>
-                </Tooltip>
+                <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => handleRevertStatus(item)}><RotateCcw className="h-4 w-4" /></Button>
+                <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => setRetentionToDelete(item)}><Trash2 className="h-4 w-4" /></Button>
             </div>
         </TableCell>
-        <TableCell className="p-2">
-            <span className="font-mono text-xs">{item.numeroAutorizacion}</span>
-        </TableCell>
+        <TableCell className="p-2"><span className="font-mono text-[10px] break-all">{item.numeroAutorizacion}</span></TableCell>
       </TableRow>
     ));
   }
@@ -553,33 +516,32 @@ Agradecemos su pronta gestión.
       <CardHeader>
         <CardTitle>Historial de Retenciones</CardTitle>
         <CardDescription>
-          Aquí puedes ver y gestionar todas las retenciones que has procesado.
+          Gestiona tus documentos y sincroniza su estado real con el SRI.
         </CardDescription>
       </CardHeader>
       <CardContent>
         {error && (
-          <Alert variant="destructive">
+          <Alert variant="destructive" className="mb-4">
             <FileWarning className="h-4 w-4" />
-            <AlertTitle>Error al Cargar Historial</AlertTitle>
+            <AlertTitle>Error</AlertTitle>
             <AlertDescription>{error.message}</AlertDescription>
           </Alert>
         )}
         
         <div className="flex items-center gap-4 mb-4">
-            <Button onClick={handleBulkShareForVoiding} disabled={selectedCount === 0}>
-                <Mail className="mr-2" />
-                Email para Anular ({selectedCount})
+            <Button onClick={handleBulkShareForVoiding} disabled={selectedCount === 0} size="sm">
+                <Mail className="mr-2 h-4 w-4" />
+                Email Anular ({selectedCount})
             </Button>
-            <Button onClick={handleBulkRequestSriAcceptance} disabled={selectedCount === 0}>
-                <Send className="mr-2" />
-                Solicitar Aceptación SRI ({selectedCount})
+            <Button onClick={handleBulkRequestSriAcceptance} disabled={selectedCount === 0} size="sm">
+                <Send className="mr-2 h-4 w-4" />
+                Aceptación SRI ({selectedCount})
             </Button>
         </div>
 
-
-        <div className="border rounded-lg mb-4">
+        <div className="border rounded-lg mb-4 overflow-hidden">
           <Table>
-            <TableHeader>
+            <TableHeader className="bg-muted/50">
               <TableRow>
                 <TableHead className="w-[40px] p-2">
                   <Checkbox
@@ -588,16 +550,17 @@ Agradecemos su pronta gestión.
                     aria-label="Seleccionar todo"
                   />
                 </TableHead>
-                <TableHead className="p-2 w-[130px]">Acciones</TableHead>
+                <TableHead className="p-2 w-[120px]">Acciones</TableHead>
                 <TableHead className="p-2 w-[150px]">Nro. Retención</TableHead>
-                <TableHead className="p-2 w-[300px]">Razón Social Proveedor</TableHead>
-                <TableHead className="p-2 w-[120px]">Nro. Factura</TableHead>
-                <TableHead className="text-right p-2 w-[180px]">Valor Reten.</TableHead>
-                <TableHead className="p-2 w-[150px]">Estado</TableHead>
-                <TableHead className="p-2 w-[160px]">Fecha Creación</TableHead>
-                <TableHead className="p-2 w-[120px]">Fecha Emisión</TableHead>
-                <TableHead className="p-2 w-[160px]">Acción SRI</TableHead>
-                <TableHead className="text-center p-2 w-[120px]">Mantenimiento</TableHead>
+                <TableHead className="p-2 w-[250px]">Proveedor</TableHead>
+                <TableHead className="p-2 w-[100px]">Factura</TableHead>
+                <TableHead className="text-right p-2 w-[140px]">Valor Reten.</TableHead>
+                <TableHead className="p-2 w-[150px]">Estado App</TableHead>
+                <TableHead className="p-2 w-[150px]">Estado SRI</TableHead>
+                <TableHead className="p-2 w-[140px]">Creación</TableHead>
+                <TableHead className="p-2 w-[100px]">Emisión</TableHead>
+                <TableHead className="p-2 w-[140px]">Validación</TableHead>
+                <TableHead className="text-center p-2 w-[100px]">Mantenim.</TableHead>
                 <TableHead className="p-2">Autorización</TableHead>
               </TableRow>
             </TableHeader>
@@ -607,36 +570,21 @@ Agradecemos su pronta gestión.
           </Table>
         </div>
 
-        <div className="space-y-2">
-          {(noRecibidoRetenciones.length > 0 || loading) && (
-            <Accordion type="single" collapsible className="w-full" disabled={loading}>
-              <AccordionItem value="no-recibidas">
-                <AccordionTrigger>
+        <div className="space-y-4">
+          {noRecibidoRetenciones.length > 0 && (
+            <Accordion type="single" collapsible className="w-full">
+              <AccordionItem value="no-recibidas" className="border rounded-lg px-4">
+                <AccordionTrigger className="hover:no-underline">
                   <div className="flex items-center gap-2">
-                    <FileX className="h-4 w-4" />
-                    Mostrar Retenciones No Recibidas ({loading ? '...' : noRecibidoRetenciones.length})
+                    <FileX className="h-4 w-4 text-destructive" />
+                    <span>Retenciones No Recibidas ({noRecibidoRetenciones.length})</span>
                   </div>
                 </AccordionTrigger>
                 <AccordionContent>
-                  <div className="border rounded-lg">
+                  <div className="border rounded-lg mt-2">
                     <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead className="p-2 w-[130px]">Acciones</TableHead>
-                          <TableHead className="p-2 w-[150px]">Nro. Retención</TableHead>
-                          <TableHead className="p-2 w-[300px]">Razón Social Proveedor</TableHead>
-                          <TableHead className="p-2 w-[120px]">Nro. Factura</TableHead>
-                          <TableHead className="text-right p-2 w-[180px]">Valor Reten.</TableHead>
-                          <TableHead className="p-2 w-[150px]">Estado</TableHead>
-                          <TableHead className="p-2 w-[160px]">Fecha Creación</TableHead>
-                          <TableHead className="p-2 w-[120px]">Fecha Emisión</TableHead>
-                          <TableHead className="p-2 w-[160px]">Acción SRI</TableHead>
-                          <TableHead className="text-center p-2 w-[120px]">Mantenimiento</TableHead>
-                          <TableHead className="p-2">Autorización</TableHead>
-                        </TableRow>
-                      </TableHeader>
                       <TableBody>
-                        {loading ? renderSkeleton() : renderArchivedTableRows(noRecibidoRetenciones)}
+                        {renderArchivedTableRows(noRecibidoRetenciones)}
                       </TableBody>
                     </Table>
                   </div>
@@ -645,35 +593,20 @@ Agradecemos su pronta gestión.
             </Accordion>
           )}
 
-          {(anulatedRetenciones.length > 0 || loading) && (
-            <Accordion type="single" collapsible className="w-full" disabled={loading}>
-              <AccordionItem value="anuladas">
-                <AccordionTrigger>
+          {anulatedRetenciones.length > 0 && (
+            <Accordion type="single" collapsible className="w-full">
+              <AccordionItem value="anuladas" className="border rounded-lg px-4">
+                <AccordionTrigger className="hover:no-underline">
                   <div className="flex items-center gap-2">
-                    <Archive className="h-4 w-4" />
-                    Mostrar Retenciones Anuladas ({loading ? '...' : anulatedRetenciones.length})
+                    <Archive className="h-4 w-4 text-muted-foreground" />
+                    <span>Retenciones Anuladas ({anulatedRetenciones.length})</span>
                   </div>
                 </AccordionTrigger>
                 <AccordionContent>
-                  <div className="border rounded-lg">
+                  <div className="border rounded-lg mt-2">
                     <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead className="p-2 w-[130px]">Acciones</TableHead>
-                          <TableHead className="p-2 w-[150px]">Nro. Retención</TableHead>
-                          <TableHead className="p-2 w-[300px]">Razón Social Proveedor</TableHead>
-                          <TableHead className="p-2 w-[120px]">Nro. Factura</TableHead>
-                          <TableHead className="text-right p-2 w-[180px]">Valor Reten.</TableHead>
-                          <TableHead className="p-2 w-[150px]">Estado</TableHead>
-                          <TableHead className="p-2 w-[160px]">Fecha Creación</TableHead>
-                          <TableHead className="p-2 w-[120px]">Fecha Emisión</TableHead>
-                          <TableHead className="p-2 w-[160px]">Acción SRI</TableHead>
-                          <TableHead className="text-center p-2 w-[120px]">Mantenimiento</TableHead>
-                          <TableHead className="p-2">Autorización</TableHead>
-                        </TableRow>
-                      </TableHeader>
                       <TableBody>
-                        {loading ? renderSkeleton() : renderArchivedTableRows(anulatedRetenciones)}
+                        {renderArchivedTableRows(anulatedRetenciones)}
                       </TableBody>
                     </Table>
                   </div>
@@ -684,21 +617,19 @@ Agradecemos su pronta gestión.
         </div>
       </CardContent>
     </Card>
-      <AlertDialog open={!!retentionToDelete} onOpenChange={(open) => !open && setRetentionToDelete(null)}>
+
+    <AlertDialog open={!!retentionToDelete} onOpenChange={(open) => !open && setRetentionToDelete(null)}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+          <AlertDialogTitle>¿Eliminar retención?</AlertDialogTitle>
           <AlertDialogDescription>
-            Esta acción es permanente y no se puede deshacer. La retención <strong>{retentionToDelete?.numeroRetencion}</strong> será eliminada de forma definitiva.
+            La retención <strong>{retentionToDelete?.numeroRetencion}</strong> será eliminada permanentemente.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel onClick={() => setRetentionToDelete(null)}>Cancelar</AlertDialogCancel>
-          <AlertDialogAction
-            onClick={handleDelete}
-            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-          >
-            Sí, eliminar
+          <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+            Eliminar
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

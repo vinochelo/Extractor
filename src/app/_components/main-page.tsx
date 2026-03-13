@@ -15,6 +15,8 @@ import {
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import type { RetentionRecord } from '@/lib/types';
 import { EmailImporter } from './email-importer';
+import { SriManualChecker } from './sri-manual-checker';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 export function MainPage() {
   const { user, isUserLoading } = useUser();
@@ -30,7 +32,6 @@ export function MainPage() {
   const [historyKey, setHistoryKey] = useState(Date.now());
 
   useEffect(() => {
-    // Automatically sign in the user anonymously if not logged in and not loading.
     if (!user && !isUserLoading && auth) {
       initiateAnonymousSignIn(auth);
     }
@@ -71,16 +72,14 @@ export function MainPage() {
       });
 
       if (result.success) {
-        // Prepare the record to show/save
         const retentionRecordData = {
           ...result.data,
           fileName: fileToProcess.name,
-          createdAt: new Date(), // Use JS Date object, Firestore will convert it.
+          createdAt: new Date(),
           userId: user.uid,
-          estado: 'Solicitado' as const, // Set default status
+          estado: 'Solicitado' as const,
         };
 
-        // --- Check for duplicates ---
         const retencionesCollection = collection(
           firestore,
           'users',
@@ -93,24 +92,19 @@ export function MainPage() {
         );
         const querySnapshot = await getDocs(q);
 
-        // Always show the extracted data card
         setExtractedData({ ...retentionRecordData, id: 'temp-preview' });
-        setFile(null); // Clear the file input
+        setFile(null);
 
         if (!querySnapshot.empty) {
-          // --- It's a duplicate ---
           setDuplicateWarning(
             `La retención Nro. ${result.data.numeroRetencion} ya existe en tu historial. No se guardará de nuevo.`
           );
         } else {
-          // --- It's not a duplicate, save it ---
           const docRef = await addDocumentNonBlocking(
             retencionesCollection,
             retentionRecordData
           );
-          // Refresh the history table
           setHistoryKey(Date.now());
-          // We can update the temporary extracted data with the real ID, though not strictly necessary
           if (docRef) {
             setExtractedData({ ...retentionRecordData, id: docRef.id });
           }
@@ -129,39 +123,46 @@ export function MainPage() {
     if (file && user && firestore) {
       handleSubmit(file);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [file, user, firestore]);
 
   return (
     <main className="container mx-auto px-4 py-8 md:py-16">
       <div className="text-center mb-12">
         <h1 className="font-headline text-4xl md:text-5xl font-bold tracking-tight">
-          Retenciones Anuladas
+          Retenciones Wise
         </h1>
         <p className="mt-4 max-w-2xl mx-auto text-lg text-muted-foreground">
-          Extrae datos de tus documentos de retención PDF de forma rápida y
-          segura con el poder de la IA.
+          Gestión inteligente de retenciones del SRI con el poder de la IA.
         </p>
       </div>
 
-      <div className="mb-12">
-        <RetentionHistoryTable key={historyKey} />
-      </div>
+      <Tabs defaultValue="historial" className="space-y-8">
+        <TabsList className="grid w-full max-w-md mx-auto grid-cols-2">
+          <TabsTrigger value="historial">Historial y Carga</TabsTrigger>
+          <TabsTrigger value="herramientas">Consultas SRI</TabsTrigger>
+        </TabsList>
 
-      <div className="space-y-12">
-        <PdfUploader
-          file={file}
-          onFileChange={handleFileChange}
-          onFileRemove={handleRemoveFile}
-          loading={loading || isUserLoading}
-          error={error}
-          warning={duplicateWarning}
-        />
+        <TabsContent value="historial" className="space-y-12">
+          <RetentionHistoryTable key={historyKey} />
 
-        {extractedData && <ExtractionResultCard data={extractedData} />}
-        
-        <EmailImporter />
-      </div>
+          <PdfUploader
+            file={file}
+            onFileChange={handleFileChange}
+            onFileRemove={handleRemoveFile}
+            loading={loading || isUserLoading}
+            error={error}
+            warning={duplicateWarning}
+          />
+
+          {extractedData && <ExtractionResultCard data={extractedData} />}
+          
+          <EmailImporter />
+        </TabsContent>
+
+        <TabsContent value="herramientas" className="space-y-12">
+          <SriManualChecker />
+        </TabsContent>
+      </Tabs>
     </main>
   );
 }

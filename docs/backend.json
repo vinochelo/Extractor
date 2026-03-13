@@ -12,7 +12,7 @@
         },
         "userId": {
           "type": "string",
-          "description": "Referencia al Usuario que subió esta Retencion. (Relación: Usuario 1:N Retencion)"
+          "description": "Referencia al Usuario que subió esta Retencion."
         },
         "numeroRetencion": {
           "type": "string",
@@ -20,7 +20,7 @@
         },
         "numeroAutorizacion": {
           "type": "string",
-          "description": "El 'numero de autorización' extraído del PDF."
+          "description": "El 'numero de autorización' de 49 dígitos."
         },
         "razonSocialProveedor": {
           "type": "string",
@@ -40,7 +40,7 @@
         },
         "fechaEmision": {
           "type": "string",
-          "description": "La 'fechaEmision' (fecha de emisión) extraída del PDF."
+          "description": "La 'fecha de emisión' extraída del PDF."
         },
         "valorRetencion": {
           "type": "string",
@@ -48,17 +48,30 @@
         },
         "fileName": {
           "type": "string",
-          "description": "El nombre del archivo PDF del cual se extrajeron los datos."
+          "description": "El nombre del archivo PDF original."
         },
         "createdAt": {
           "type": "string",
-          "description": "La marca de tiempo que indica cuándo se creó la Retencion (extraída y almacenada).",
+          "description": "Fecha de creación en la app.",
           "format": "date-time"
         },
         "estado": {
           "type": "string",
-          "description": "El estado actual de la retención.",
+          "description": "El estado interno en la aplicación.",
           "enum": ["Solicitado", "Pendiente Anular", "Anulado", "No Recibido"]
+        },
+        "sriEstado": {
+          "type": "string",
+          "description": "El estado devuelto por la API del SRI."
+        },
+        "sriMensaje": {
+          "type": "string",
+          "description": "Mensaje de error o detalle devuelto por el SRI."
+        },
+        "lastSriCheck": {
+          "type": "string",
+          "description": "Última fecha de consulta al SRI.",
+          "format": "date-time"
         }
       },
       "required": [
@@ -68,7 +81,6 @@
         "numeroAutorizacion",
         "razonSocialProveedor",
         "rucProveedor",
-        "emailProveedor",
         "numeroFactura",
         "fechaEmision",
         "valorRetencion",
@@ -81,11 +93,11 @@
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "User",
       "type": "object",
-      "description": "Representa a un usuario de la aplicación. Usando autenticación anónima.",
+      "description": "Representa a un usuario de la aplicación.",
       "properties": {
         "id": {
           "type": "string",
-          "description": "Identificador único para la entidad Usuario. Esto corresponde al UID de Firebase Auth."
+          "description": "UID de Firebase Auth."
         }
       },
       "required": [
@@ -108,11 +120,11 @@
           "schema": {
             "$ref": "#/backend/entities/User"
           },
-          "description": "Almacena los datos del usuario. El parámetro 'userId' corresponde al UID de Firebase Auth.",
+          "description": "Datos del usuario.",
           "params": [
             {
               "name": "userId",
-              "description": "El UID de Firebase Auth del usuario."
+              "description": "UID del usuario."
             }
           ]
         }
@@ -124,20 +136,19 @@
           "schema": {
             "$ref": "#/backend/entities/Retencion"
           },
-          "description": "Almacena los datos de las retenciones de un usuario específico. El parámetro 'userId' corresponde al UID de Firebase Auth, asegurando la propiedad basada en la ruta. El 'retencionId' es el ID único para el documento de retención.",
+          "description": "Retenciones de un usuario.",
           "params": [
             {
               "name": "userId",
-              "description": "El UID de Firebase Auth del usuario propietario de la retención."
+              "description": "UID del propietario."
             },
             {
               "name": "retencionId",
-              "description": "El identificador único para el documento de retención."
+              "description": "ID único de la retención."
             }
           ]
         }
       }
-    ],
-    "reasoning": "La estructura de Firestore está diseñada para garantizar una gestión de datos segura y eficiente para la aplicación RetenciónWise. Aprovecha la propiedad basada en la ruta para las retenciones de los usuarios, alineándose con las mejores prácticas de seguridad de Firebase. La estructura evita las llamadas `get()` en las reglas de seguridad utilizando la propiedad basada en la ruta, logrando así la Independencia de Autorización y operaciones atómicas. Este enfoque asegura que las reglas de seguridad sean simples, robustas y fáciles de depurar. Además, la segregación estructural mantiene los documentos con las mismas necesidades de acceso en las mismas colecciones para evitar el filtrado en las reglas. La estructura elegida facilita las operaciones `list` seguras (QAPs) ya que el control de acceso se aplica de forma natural por la estructura de la ruta."
+    ]
   }
 }
