@@ -44,7 +44,7 @@ export function SriManualChecker() {
   };
 
   const getStatusStyles = (estado: string) => {
-    const status = estado.toUpperCase();
+    const status = (estado || "").toUpperCase();
     if (status === "AUTORIZADO") return "bg-green-500/10 border-green-500/50 text-green-700";
     if (status === "POR PROCESAR" || status === "RECIBIDO") return "bg-yellow-500/10 border-yellow-500/50 text-yellow-700";
     if (status === "NO AUTORIZADO" || status === "FUERA DE RANGO" || status === "RECHAZADO") return "bg-destructive/10 border-destructive/50 text-destructive";
@@ -52,7 +52,7 @@ export function SriManualChecker() {
   };
 
   const getStatusIcon = (estado: string) => {
-    const status = estado.toUpperCase();
+    const status = (estado || "").toUpperCase();
     if (status === "AUTORIZADO") return <CheckCircle2 className="h-6 w-6" />;
     if (status === "POR PROCESAR") return <Clock className="h-6 w-6" />;
     return <AlertCircle className="h-6 w-6" />;
@@ -67,7 +67,13 @@ export function SriManualChecker() {
     }
   };
 
+  // Extraer información técnica buscando en múltiples niveles de la respuesta
   const extraInfo = result?.debug_sri_response?.EstadoAutorizacionComprobante;
+  
+  const tipoComprobante = extraInfo?.tipoComprobante || "No especificado";
+  const rucEmisor = extraInfo?.rucEmisor || "No especificado";
+  const fechaAutorizacion = result?.fechaAutorizacion || extraInfo?.fechaAutorizacion;
+  const claveAccesoVerificada = result?.claveAcceso || extraInfo?.claveAcceso || result?.debug_sri_response?.EstadoAutorizacionComprobante?.claveAcceso;
 
   return (
     <Card className="w-full max-w-3xl mx-auto mt-8 border-2 shadow-xl rounded-2xl overflow-hidden">
@@ -90,7 +96,7 @@ export function SriManualChecker() {
           <div className="flex flex-col gap-4">
             <div className="relative group">
               <Input
-                placeholder="Ingresa los 49 dígitos numéricos del comprobante"
+                placeholder="Ingresa los 49 dígitos numéricos"
                 value={clave}
                 onChange={handleInputChange}
                 className={cn(
@@ -134,7 +140,7 @@ export function SriManualChecker() {
             )}>
               <div className="flex items-center gap-3 text-2xl font-extrabold uppercase tracking-tight">
                 {getStatusIcon(result.estado)}
-                <span>Estado: {result.estado}</span>
+                <span>Estado: {result.estado || "No disponible"}</span>
               </div>
               
               {(result.mensaje || extraInfo?.mensajes) && (
@@ -161,7 +167,7 @@ export function SriManualChecker() {
                 <FileText className="h-5 w-5 text-primary shrink-0 mt-0.5" />
                 <div>
                   <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Tipo de Comprobante</p>
-                  <p className="font-semibold">{extraInfo?.tipoComprobante || "No especificado"}</p>
+                  <p className="font-semibold">{tipoComprobante}</p>
                 </div>
               </div>
               
@@ -169,7 +175,7 @@ export function SriManualChecker() {
                 <Building2 className="h-5 w-5 text-primary shrink-0 mt-0.5" />
                 <div>
                   <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">RUC Emisor</p>
-                  <p className="font-semibold font-mono">{extraInfo?.rucEmisor || "No especificado"}</p>
+                  <p className="font-semibold font-mono">{rucEmisor}</p>
                 </div>
               </div>
 
@@ -177,7 +183,7 @@ export function SriManualChecker() {
                 <CalendarDays className="h-5 w-5 text-primary shrink-0 mt-0.5" />
                 <div>
                   <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Fecha de Autorización</p>
-                  <p className="font-semibold">{formatSriDate(result.fechaAutorizacion || extraInfo?.fechaAutorizacion)}</p>
+                  <p className="font-semibold">{formatSriDate(fechaAutorizacion)}</p>
                 </div>
               </div>
 
@@ -185,7 +191,7 @@ export function SriManualChecker() {
                 <Fingerprint className="h-5 w-5 text-primary shrink-0 mt-0.5" />
                 <div className="overflow-hidden w-full">
                   <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Clave de Acceso Verificada</p>
-                  <p className="font-mono text-[11px] break-all text-primary/80">{extraInfo?.claveAcceso || result.debug_sri_response?.EstadoAutorizacionComprobante?.claveAcceso || "No disponible"}</p>
+                  <p className="font-mono text-[11px] break-all text-primary/80">{claveAccesoVerificada || "No disponible"}</p>
                 </div>
               </div>
             </div>

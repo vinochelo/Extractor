@@ -6,6 +6,7 @@ export interface SriResponse {
   estado: string;
   mensaje?: string;
   fechaAutorizacion?: string;
+  claveAcceso?: string;
   debug_sri_response?: {
     EstadoAutorizacionComprobante?: {
       tipoComprobante?: string;
@@ -32,7 +33,8 @@ export async function consultarFacturaSRI(claveAcceso: string): Promise<SriRespo
       throw new Error(`Error en la consulta: ${response.statusText}`);
     }
 
-    return await response.json();
+    const data = await response.json();
+    return data;
   } catch (error) {
     console.error("SRI API Error:", error);
     throw error;
