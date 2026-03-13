@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useMemo, useState, useEffect } from 'react';
@@ -107,6 +108,7 @@ export function RetentionHistoryTable() {
     return { activeRetenciones: active, anulatedRetenciones: anulated, noRecibidoRetenciones: noRecibido };
   }, [retenciones]);
 
+  // Lógica del temporizador de sincronización
   useEffect(() => {
     const interval = setInterval(() => {
       if (!activeRetenciones || activeRetenciones.length === 0) {
@@ -117,6 +119,7 @@ export function RetentionHistoryTable() {
       const ONE_HOUR_MS = 60 * 60 * 1000;
       const now = new Date();
       
+      // Buscar el check más antiguo de la lista activa
       let oldestCheckDate = now;
       activeRetenciones.forEach(r => {
           if (!r.lastSriCheck) {
@@ -141,6 +144,7 @@ export function RetentionHistoryTable() {
     return `${h}h ${m}m ${s}s`;
   };
 
+  // Sincronización automática cada 1 hora (detecta obsoletos)
   useEffect(() => {
     if (!activeRetenciones || activeRetenciones.length === 0 || !user?.uid || !firestore) return;
     const ONE_HOUR_MS = 60 * 60 * 1000;
@@ -153,6 +157,7 @@ export function RetentionHistoryTable() {
     });
 
     if (staleRetentions.length > 0) {
+      // Ordenar por antigüedad para procesar el más viejo primero
       staleRetentions.sort((a, b) => {
           const dateA = (a.lastSriCheck as any)?.toDate?.() || new Date(a.lastSriCheck as any || 0);
           const dateB = (b.lastSriCheck as any)?.toDate?.() || new Date(b.lastSriCheck as any || 0);
@@ -163,7 +168,7 @@ export function RetentionHistoryTable() {
         const itemToUpdate = staleRetentions[0];
         await handleCheckSriStatus(itemToUpdate, true);
       };
-      const timer = setTimeout(processNextStale, 5000);
+      const timer = setTimeout(processNextStale, 5000); // Pequeño delay para no saturar
       return () => clearTimeout(timer);
     }
   }, [activeRetenciones, user?.uid, firestore]);
@@ -199,10 +204,12 @@ export function RetentionHistoryTable() {
     const retentionRef = doc(firestore, `users/${user.uid}/retenciones`, retention.id);
     const updateData: any = {};
     
+    // Si estaba en solicitado, pasar a pendiente de anular automáticamente
     if (retention.estado === 'Solicitado') {
       updateData.estado = 'Pendiente Anular';
     }
     
+    // Marcar qué acción se realizó específicamente
     if (action === 'email') updateData.emailAnularSent = true;
     if (action === 'acceptance') updateData.sriAcceptanceRequested = true;
 

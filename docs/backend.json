@@ -29,7 +29,7 @@
         },
         "rucProveedor": {
           "type": "string",
-          "description": "El 'ruc del proveedor' extraído del PDF."
+          "description": "El 'ruc del proveedor' extraída del PDF."
         },
         "emailProveedor": {
           "type": "string",
@@ -63,7 +63,7 @@
         },
         "sriEstado": {
           "type": "string",
-          "description": "El estado devuelto por la API del SRI."
+          "description": "El estado devuelto por la API del SRI (AUTORIZADO, ANULADO, etc.)."
         },
         "sriMensaje": {
           "type": "string",
