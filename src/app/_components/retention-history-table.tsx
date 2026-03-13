@@ -374,7 +374,7 @@ export function RetentionHistoryTable() {
         <TableRow key={item.id} className={cn("transition-colors", selectedRetentions[item.id] ? "bg-primary/[0.03]" : "hover:bg-muted/30")}>
           <TableCell className="p-2"><Checkbox checked={!!selectedRetentions[item.id]} onCheckedChange={(value) => handleSelectRetention(item, !!value)} className="rounded" /></TableCell>
           <TableCell className="p-2">
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1.5 px-2">
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button 
@@ -387,7 +387,7 @@ export function RetentionHistoryTable() {
                         <Mail className={cn("h-5 w-5", !item.emailAnularSent ? "text-blue-600" : "text-slate-400")} />
                       </Button>
                     </TooltipTrigger>
-                    <TooltipContent><p>Email para Anular</p></TooltipContent>
+                    <TooltipContent side="top"><p>Email para Anular</p></TooltipContent>
                   </Tooltip>
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -401,7 +401,7 @@ export function RetentionHistoryTable() {
                         <Send className={cn("h-5 w-5", !item.sriAcceptanceRequested ? "text-violet-700" : "text-slate-400")} />
                       </Button>
                     </TooltipTrigger>
-                    <TooltipContent><p>Solicitar Aceptación SRI</p></TooltipContent>
+                    <TooltipContent side="top"><p>Solicitar Aceptación SRI</p></TooltipContent>
                   </Tooltip>
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -409,7 +409,7 @@ export function RetentionHistoryTable() {
                             {copiedId === item.id ? <CheckCircle2 className="h-4 w-4 text-emerald-500" /> : <Copy className="h-4 w-4 text-muted-foreground" />}
                         </Button>
                     </TooltipTrigger>
-                    <TooltipContent><p>Copiar Datos</p></TooltipContent>
+                    <TooltipContent side="top"><p>Copiar Datos</p></TooltipContent>
                   </Tooltip>
               </div>
           </TableCell>
@@ -417,19 +417,24 @@ export function RetentionHistoryTable() {
           <TableCell className="font-semibold p-2 w-[150px]"><div className="truncate text-sm" title={item.razonSocialProveedor}>{item.razonSocialProveedor}</div></TableCell>
           <TableCell className="p-2 w-[110px] font-medium text-muted-foreground text-sm">{item.numeroFactura}</TableCell>
           <TableCell className="font-mono font-bold text-right p-2 w-[110px] text-primary text-sm">{item.valorRetencion}</TableCell>
-          <TableCell className="p-2 w-[200px]">
+          <TableCell className="p-2 w-[220px]">
             <div className="flex flex-col items-center justify-center gap-1.5 py-2 px-3 bg-muted/30 rounded-xl border border-border/60 shadow-sm min-h-[70px]">
-              <div className={cn("text-xs font-black uppercase tracking-widest leading-none", getSriStatusColor(item.sriEstado))}>
+              <div className={cn("text-sm font-black uppercase tracking-widest leading-none", getSriStatusColor(item.sriEstado))}>
                 {item.sriEstado || "NO CONSULTADO"}
               </div>
-              <div className={cn("text-[10px] flex items-center justify-center gap-1 font-bold opacity-80", getSriStatusColor(item.sriEstado))}>
-                <Clock className="h-2.5 w-2.5" />
+              <div className={cn("text-[11px] flex items-center justify-center gap-1 font-bold opacity-80", getSriStatusColor(item.sriEstado))}>
+                <Clock className="h-3 w-3" />
                 {isMounted ? (item.lastSriCheck ? formatRelativeTime(item.lastSriCheck) : 'Sin fecha') : '...'}
               </div>
-              <Button size="sm" variant="outline" className="h-6 text-[9px] font-bold px-2 rounded-md bg-background border-border/80 hover:border-primary/50 transition-all mt-1" onClick={() => handleCheckSriStatus(item)} disabled={checkingSriId === item.id}>
-                {checkingSriId === item.id ? <RefreshCw className="h-2.5 w-2.5 animate-spin" /> : <RefreshCw className="h-2.5 w-2.5 mr-1.5" />}
-                SINCRONIZAR
-              </Button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button size="sm" variant="outline" className="h-6 text-[10px] font-bold px-2 rounded-md bg-background border-border/80 hover:border-primary/50 transition-all mt-1" onClick={() => handleCheckSriStatus(item)} disabled={checkingSriId === item.id}>
+                    {checkingSriId === item.id ? <RefreshCw className="h-2.5 w-2.5 animate-spin" /> : <RefreshCw className="h-2.5 w-2.5 mr-1.5" />}
+                    SINCRONIZAR
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="top"><p>Revisar autorización en el SRI</p></TooltipContent>
+              </Tooltip>
             </div>
           </TableCell>
           <TableCell className="p-2 w-[140px] text-center"><StatusSelector retention={item} /></TableCell>
@@ -445,7 +450,7 @@ export function RetentionHistoryTable() {
                           <RotateCcw className="h-3.5 w-3.5" />
                         </Button>
                       </TooltipTrigger>
-                      <TooltipContent><p>Revertir Estado</p></TooltipContent>
+                      <TooltipContent side="top"><p>Revertir Estado</p></TooltipContent>
                     </Tooltip>
                   )}
                   <Button size="icon" variant="ghost" className="h-7 w-7 rounded-full text-destructive/60 hover:text-destructive hover:bg-destructive/5" onClick={() => setRetentionToDelete(item)}>
@@ -464,7 +469,7 @@ export function RetentionHistoryTable() {
     return items.map((item: RetentionRecord) => (
       <TableRow key={item.id} className="opacity-70 hover:opacity-100 transition-opacity">
          <TableCell className="p-2">
-           <div className="flex items-center gap-1.5">
+           <div className="flex items-center gap-1.5 px-2">
              <Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg" onClick={() => handleShareForVoiding(item)}><Mail className="h-4 w-4 text-blue-600" /></Button>
              <Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg" onClick={() => handleRequestSriAcceptance(item)}><Send className="h-4 w-4 text-violet-700" /></Button>
            </div>
@@ -510,11 +515,11 @@ export function RetentionHistoryTable() {
             <CardTitle className="text-3xl font-black tracking-tight">Seguimiento de Anulaciones</CardTitle>
             <CardDescription className="text-base font-semibold opacity-70">Sincroniza y gestiona comunicación con proveedores.</CardDescription>
           </div>
-          <div className="flex items-center gap-3 text-xs font-black text-primary bg-primary/10 border-2 border-primary/20 px-4 py-2.5 rounded-2xl shadow-md animate-in zoom-in duration-500">
-            <Timer className="h-5 w-5" />
+          <div className="flex items-center gap-4 text-xs font-black text-primary bg-primary/10 border-2 border-primary/20 px-6 py-4 rounded-2xl shadow-md animate-in zoom-in duration-500">
+            <Timer className="h-7 w-7" />
             <div className="flex flex-col">
-              <span className="text-[10px] uppercase tracking-wider opacity-60">Sincronizando con SRI en:</span>
-              <span className="text-lg font-mono leading-none">{isMounted ? formatCountdown(secondsUntilSync) : '--:--:--'}</span>
+              <span className="text-[11px] uppercase tracking-wider opacity-60">Sincronizando con SRI en:</span>
+              <span className="text-2xl font-mono leading-none mt-1">{isMounted ? formatCountdown(secondsUntilSync) : '--:--:--'}</span>
             </div>
           </div>
         </div>
@@ -539,12 +544,12 @@ export function RetentionHistoryTable() {
             <TableHeader className="bg-muted/50 border-b">
               <TableRow className="hover:bg-transparent">
                 <TableHead className="w-[45px] p-2 text-center"><Checkbox checked={selectedCount > 0 && selectedCount === activeRetenciones.length} onCheckedChange={(value) => handleSelectAll(!!value)} className="rounded" /></TableHead>
-                <TableHead className="p-2 w-[115px] font-black text-[10px] uppercase tracking-widest">Acciones</TableHead>
+                <TableHead className="p-2 w-[125px] font-black text-[10px] uppercase tracking-widest px-4">Acciones</TableHead>
                 <TableHead className="p-2 w-[130px] font-black text-[10px] uppercase tracking-widest">Retención</TableHead>
                 <TableHead className="p-2 w-[150px] font-black text-[10px] uppercase tracking-widest">Proveedor</TableHead>
                 <TableHead className="p-2 w-[115px] font-black text-[10px] uppercase tracking-widest">Factura</TableHead>
                 <TableHead className="text-right p-2 w-[115px] font-black text-[10px] uppercase tracking-widest">Valor</TableHead>
-                <TableHead className="p-2 w-[200px] text-center font-black text-[10px] uppercase tracking-widest">SRI Status</TableHead>
+                <TableHead className="p-2 w-[220px] text-center font-black text-[10px] uppercase tracking-widest">SRI Status</TableHead>
                 <TableHead className="p-2 w-[140px] text-center font-black text-[10px] uppercase tracking-widest">App Status</TableHead>
                 <TableHead className="p-2 w-[125px] font-black text-[10px] uppercase tracking-widest">Registro</TableHead>
                 <TableHead className="p-2 w-[105px] font-black text-[10px] uppercase tracking-widest">Emisión</TableHead>
