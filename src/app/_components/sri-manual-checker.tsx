@@ -5,9 +5,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { consultarFacturaSRI, SriResponse } from "@/lib/sri-service";
-import { Loader2, Search, CheckCircle2, AlertCircle, Clock, Info, ShieldCheck } from "lucide-react";
+import { Loader2, Search, CheckCircle2, AlertCircle, Clock, Info, ShieldCheck, Building2, FileText, CalendarDays, MessageSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { format } from "date-fns";
+import { es } from "date-fns/locale";
 
 export function SriManualChecker() {
   const [clave, setClave] = useState("");
@@ -51,10 +53,21 @@ export function SriManualChecker() {
 
   const getStatusIcon = (estado: string) => {
     const status = estado.toUpperCase();
-    if (status === "AUTORIZADO") return <CheckCircle2 className="h-5 w-5" />;
-    if (status === "POR PROCESAR") return <Clock className="h-5 w-5" />;
-    return <AlertCircle className="h-5 w-5" />;
+    if (status === "AUTORIZADO") return <CheckCircle2 className="h-6 w-6" />;
+    if (status === "POR PROCESAR") return <Clock className="h-6 w-6" />;
+    return <AlertCircle className="h-6 w-6" />;
   };
+
+  const formatSriDate = (dateString?: string) => {
+    if (!dateString) return "N/A";
+    try {
+      return format(new Date(dateString), "d 'de' MMMM 'de' yyyy, HH:mm:ss", { locale: es });
+    } catch {
+      return dateString;
+    }
+  };
+
+  const extraInfo = result?.debug_sri_response?.EstadoAutorizacionComprobante;
 
   return (
     <Card className="w-full max-w-3xl mx-auto mt-8 border-2 shadow-xl rounded-2xl overflow-hidden">
@@ -66,7 +79,7 @@ export function SriManualChecker() {
             <CardTitle className="text-2xl">Consulta Individual SRI</CardTitle>
         </div>
         <CardDescription className="text-base">
-          Verifica la validez y el estado actual de cualquier comprobante electrónico.
+          Verifica la validez y el estado actual de cualquier comprobante electrónico ingresando su número de autorización.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-8 pt-8 px-8">
@@ -77,12 +90,12 @@ export function SriManualChecker() {
           <div className="flex flex-col gap-4">
             <div className="relative group">
               <Input
-                placeholder="Ingresa los 49 dígitos numéricos..."
+                placeholder="Ingresa los 49 dígitos numéricos del comprobante"
                 value={clave}
                 onChange={handleInputChange}
                 className={cn(
                   "h-16 text-lg font-mono tracking-[0.2em] px-4 border-2 transition-all duration-300 rounded-xl",
-                  clave.length === 49 ? "border-primary bg-primary/5" : "hover:border-primary/50"
+                  clave.length === 49 ? "border-primary bg-primary/5 shadow-inner" : "hover:border-primary/50"
                 )}
                 disabled={loading}
               />
@@ -113,20 +126,58 @@ export function SriManualChecker() {
         )}
 
         {result && (
-          <div className={cn(
-            "p-6 rounded-2xl border-2 flex flex-col gap-3 animate-in fade-in zoom-in duration-500 shadow-sm", 
-            getStatusStyles(result.estado)
-          )}>
-            <div className="flex items-center gap-3 text-xl font-extrabold uppercase tracking-tight">
-              {getStatusIcon(result.estado)}
-              <span>Estado: {result.estado}</span>
-            </div>
-            {result.mensaje && (
-              <div className="text-sm font-medium flex gap-3 p-3 bg-background/50 rounded-xl border border-current/20">
-                <Info className="h-5 w-5 shrink-0" />
-                <p><span className="font-bold opacity-70">Detalle del SRI:</span> {result.mensaje}</p>
+          <div className="space-y-6 animate-in fade-in zoom-in duration-500">
+            {/* Estado Principal */}
+            <div className={cn(
+              "p-6 rounded-2xl border-2 flex flex-col gap-3 shadow-sm", 
+              getStatusStyles(result.estado)
+            )}>
+              <div className="flex items-center gap-3 text-2xl font-extrabold uppercase tracking-tight">
+                {getStatusIcon(result.estado)}
+                <span>Estado: {result.estado}</span>
               </div>
-            )}
+              {(result.mensaje || result.debug_sri_response?.EstadoAutorizacionComprobante?.mensajes) && (
+                <div className="text-sm font-medium flex gap-3 p-4 bg-background/50 rounded-xl border border-current/20">
+                  <MessageSquare className="h-5 w-5 shrink-0 mt-0.5" />
+                  <div>
+                    <span className="font-bold opacity-70 block mb-1">Información Detallada:</span>
+                    <p>{result.mensaje || "Revisa los detalles técnicos del SRI a continuación."}</p>
+                    {extraInfo?.mensajes && (
+                       <div className="mt-2 text-xs font-mono opacity-80 bg-black/5 p-2 rounded">
+                          {JSON.stringify(extraInfo.mensajes, null, 2)}
+                       </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Detalles Técnicos */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="p-4 bg-muted/30 rounded-xl border border-border flex items-start gap-3">
+                <FileText className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Tipo de Comprobante</p>
+                  <p className="font-semibold">{extraInfo?.tipoComprobante || "No especificado"}</p>
+                </div>
+              </div>
+              
+              <div className="p-4 bg-muted/30 rounded-xl border border-border flex items-start gap-3">
+                <Building2 className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">RUC Emisor</p>
+                  <p className="font-semibold font-mono">{extraInfo?.rucEmisor || "No especificado"}</p>
+                </div>
+              </div>
+
+              <div className="p-4 bg-muted/30 rounded-xl border border-border flex items-start gap-3 md:col-span-2">
+                <CalendarDays className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Fecha de Autorización</p>
+                  <p className="font-semibold">{formatSriDate(result.fechaAutorizacion || extraInfo?.fechaAutorizacion)}</p>
+                </div>
+              </div>
+            </div>
           </div>
         )}
       </CardContent>

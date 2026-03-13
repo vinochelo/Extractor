@@ -5,6 +5,17 @@
 export interface SriResponse {
   estado: string;
   mensaje?: string;
+  fechaAutorizacion?: string;
+  debug_sri_response?: {
+    EstadoAutorizacionComprobante?: {
+      tipoComprobante?: string;
+      rucEmisor?: string;
+      mensajes?: any;
+      fechaAutorizacion?: string;
+      estadoAutorizacion?: string;
+      claveAcceso?: string;
+    }
+  }
 }
 
 export async function consultarFacturaSRI(claveAcceso: string): Promise<SriResponse> {
