@@ -156,10 +156,13 @@ export function RetentionHistoryTable() {
     if (itemsToSync.length > 0) {
       toast({ 
         title: 'Sincronización Automática SRI', 
-        description: `Actualizando estado actual de ${itemsToSync.length} comprobantes...` 
+        description: `Actualizando estado actual de ${itemsToSync.length} comprobantes secuencialmente...` 
       });
       
-      await Promise.all(itemsToSync.map(item => handleCheckSriStatus(item, true)));
+      // Sincronización secuencial para evitar problemas de API
+      for (const item of itemsToSync) {
+        await handleCheckSriStatus(item, true);
+      }
     }
   };
 
@@ -169,18 +172,13 @@ export function RetentionHistoryTable() {
     setIsBulkSyncing(true);
     toast({ 
       title: 'Iniciando Consulta Masiva', 
-      description: `Consultando el estado de ${activeRetenciones.length} comprobantes en el SRI...` 
+      description: `Consultando el estado de ${activeRetenciones.length} comprobantes en el SRI uno por uno...` 
     });
 
     try {
-      // Procesar en lotes de 5 para no saturar la API ni el cliente
-      const chunks = [];
-      for (let i = 0; i < activeRetenciones.length; i += 5) {
-        chunks.push(activeRetenciones.slice(i, i + 5));
-      }
-
-      for (const chunk of chunks) {
-        await Promise.all(chunk.map(item => handleCheckSriStatus(item, true)));
+      // Sincronización secuencial de todos los registros activos
+      for (const item of activeRetenciones) {
+        await handleCheckSriStatus(item, true);
       }
 
       toast({ 
@@ -663,9 +661,9 @@ export function RetentionHistoryTable() {
         <AlertDialogContent className="rounded-3xl border-2">
             <AlertDialogHeader>
                 <AlertDialogTitle className="text-xl font-black">¿Eliminar registro?</AlertDialogTitle>
-                <AlertDialogDescription className="text-base">
+                <AccordionDescription className="text-base">
                     La retención <span className="font-mono font-bold text-primary underline decoration-2">{retentionToDelete?.numeroRetencion}</span> será eliminada de forma irreversible.
-                </AlertDialogDescription>
+                </AccordionDescription>
             </AlertDialogHeader>
             <AlertDialogFooter className="gap-3">
                 <AlertDialogCancel onClick={() => setRetentionToDelete(null)} className="rounded-xl font-bold text-sm h-11 px-6">Cancelar</AlertDialogCancel>
