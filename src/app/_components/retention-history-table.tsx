@@ -198,33 +198,55 @@ export function RetentionHistoryTable() {
     if (!firestore || !user?.uid) return;
     if (!silent) setCheckingSriId(item.id);
     
-    try {
-      const sriData = await consultarFacturaSRI(item.numeroAutorizacion);
-      const retentionRef = doc(firestore, `users/${user.uid}/retenciones`, item.id);
-      
-      updateDocumentNonBlocking(retentionRef, { 
-        sriEstado: sriData.estado, 
-        sriMensaje: sriData.mensaje || null, 
-        lastSriCheck: new Date() 
-      });
-      
-      if (!silent) {
-        toast({ 
-          title: 'SRI Actualizado', 
-          description: `Comprobante ${item.numeroRetencion}: ${sriData.estado}` 
+    const maxRetries = 2;
+    const retryDelays = [30000, 60000]; // 30s, 1m
+
+    let success = false;
+    let attempt = 0;
+
+    while (attempt <= maxRetries && !success) {
+      try {
+        const sriData = await consultarFacturaSRI(item.numeroAutorizacion);
+        const retentionRef = doc(firestore, `users/${user.uid}/retenciones`, item.id);
+        
+        updateDocumentNonBlocking(retentionRef, { 
+          sriEstado: sriData.estado, 
+          sriMensaje: sriData.mensaje || null, 
+          lastSriCheck: new Date() 
         });
+        
+        if (!silent) {
+          toast({ 
+            title: 'SRI Actualizado', 
+            description: `Comprobante ${item.numeroRetencion}: ${sriData.estado}` 
+          });
+        }
+        success = true;
+      } catch (err: any) {
+        attempt++;
+        if (attempt <= maxRetries) {
+          const nextDelay = retryDelays[attempt - 1];
+          if (!silent || attempt === 1) {
+             toast({
+                variant: 'warning',
+                title: `Reintentando consulta (${attempt}/${maxRetries})`,
+                description: `Error con ${item.numeroRetencion}. Reintentando en ${nextDelay / 1000}s...`
+             });
+          }
+          await new Promise(resolve => setTimeout(resolve, nextDelay));
+        } else {
+          if (!silent) {
+            toast({ 
+              variant: 'destructive', 
+              title: 'Error de Sincronización', 
+              description: `No se pudo conectar con el SRI para el comprobante ${item.numeroRetencion} tras ${maxRetries} reintentos.` 
+            });
+          }
+        }
       }
-    } catch (err: any) {
-      if (!silent) {
-        toast({ 
-          variant: 'destructive', 
-          title: 'Error de Sincronización', 
-          description: `No se pudo conectar con el SRI para el comprobante ${item.numeroRetencion}.` 
-        });
-      }
-    } finally {
-      if (!silent) setCheckingSriId(null);
     }
+    
+    if (!silent) setCheckingSriId(null);
   };
 
   const formatCountdown = (seconds: number) => {
