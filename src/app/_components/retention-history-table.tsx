@@ -40,7 +40,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
-import { ExternalLink, FileWarning, Archive, RotateCcw, Trash2, Mail, Send, Copy, Check, FileX, RefreshCw, Clock } from 'lucide-react';
+import { ExternalLink, FileWarning, Archive, RotateCcw, Trash2, Mail, Send, Copy, Check, FileX, RefreshCw, Clock, Timer } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { RetentionRecord, RetentionStatus } from '@/lib/types';
@@ -84,6 +84,7 @@ export function RetentionHistoryTable() {
   const [selectedRetentions, setSelectedRetentions] = useState<Record<string, RetentionRecord>>({});
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [checkingSriId, setCheckingSriId] = useState<string | null>(null);
+  const [secondsUntilSync, setSecondsUntilSync] = useState(3 * 60 * 60); // 3 horas en segundos
 
   const retencionesQuery = useMemoFirebase(() => {
     if (!firestore || !user?.uid) return null;
@@ -106,19 +107,37 @@ export function RetentionHistoryTable() {
     return { activeRetenciones: active, anulatedRetenciones: anulated, noRecibidoRetenciones: noRecibido };
   }, [retenciones]);
 
+  // Temporizador para la cuenta regresiva de sincronización
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setSecondsUntilSync((prev) => (prev > 0 ? prev - 1 : 3 * 60 * 60));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const formatCountdown = (seconds: number) => {
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = seconds % 60;
+    return `${h}h ${m}m ${s}s`;
+  };
+
   useEffect(() => {
     if (!activeRetenciones || activeRetenciones.length === 0 || !user?.uid || !firestore) return;
     const THREE_HOURS_MS = 3 * 60 * 60 * 1000;
     const now = new Date();
+    
     const staleRetentions = activeRetenciones.filter(r => {
       if (!r.lastSriCheck) return true;
       const lastCheck = (r.lastSriCheck as any).toDate ? (r.lastSriCheck as any).toDate() : new Date(r.lastSriCheck as any);
       return now.getTime() - lastCheck.getTime() > THREE_HOURS_MS;
     });
+
     if (staleRetentions.length > 0) {
       const processNextStale = async () => {
         const itemToUpdate = staleRetentions[0];
         await handleCheckSriStatus(itemToUpdate, true);
+        setSecondsUntilSync(3 * 60 * 60); // Reset timer after a check
       };
       const timer = setTimeout(processNextStale, 5000);
       return () => clearTimeout(timer);
@@ -287,9 +306,9 @@ export function RetentionHistoryTable() {
   const getSriStatusColor = (estado?: string) => {
     if (!estado) return "text-muted-foreground";
     const status = estado.toUpperCase();
-    if (status === "AUTORIZADO") return "text-foreground"; // Negro (Foreground)
+    if (status === "AUTORIZADO") return "text-foreground"; // Negro
     if (status === "POR PROCESAR" || status === "RECIBIDO" || status.includes("PENDIENTE")) return "text-orange-500"; // Naranja
-    if (status === "ANULADO" || status === "CANCELADO") return "text-green-600"; // Verde
+    if (status === "ANULADO" || status === "CANCELADO") return "text-emerald-600"; // Verde
     if (status.includes("RECHAZADO") || status.includes("ERROR") || status.includes("NO AUTORIZADO")) return "text-destructive";
     return "text-foreground";
   };
@@ -310,12 +329,12 @@ export function RetentionHistoryTable() {
         <TableCell className="font-medium p-2 w-[250px] truncate">{item.razonSocialProveedor}</TableCell>
         <TableCell className="p-2 w-[100px]">{item.numeroFactura}</TableCell>
         <TableCell className="font-mono text-right p-2 w-[120px]">{item.valorRetencion}</TableCell>
-        <TableCell className="p-2 w-[220px]">
-          <div className="flex flex-col gap-0.5">
+        <TableCell className="p-2 w-[240px]">
+          <div className="flex flex-col items-center justify-center gap-1 text-center">
             <div className={cn("text-lg font-bold uppercase tracking-tight leading-none", getSriStatusColor(item.sriEstado))}>
               {item.sriEstado || "NO CONSULTADO"}
             </div>
-            <div className={cn("text-[10px] flex items-center gap-1 font-medium", getSriStatusColor(item.sriEstado))}>
+            <div className={cn("text-[10px] flex items-center justify-center gap-1 font-medium", getSriStatusColor(item.sriEstado))}>
               <Clock className="h-2.5 w-2.5" />
               {item.lastSriCheck ? formatRelativeTime(item.lastSriCheck) : 'Nunca verificado'}
             </div>
@@ -325,7 +344,7 @@ export function RetentionHistoryTable() {
             </Button>
           </div>
         </TableCell>
-        <TableCell className="p-2 w-[150px]"><StatusSelector retention={item} /></TableCell>
+        <TableCell className="p-2 w-[150px] text-center"><StatusSelector retention={item} /></TableCell>
         <TableCell className="p-2 w-[130px] text-xs text-muted-foreground">{formatDate(item.createdAt)}</TableCell>
         <TableCell className="p-2 w-[100px] text-xs">{item.fechaEmision}</TableCell>
         <TableCell className="p-2 w-[120px]"><Button size="sm" variant="outline" className="text-xs h-7" onClick={() => handleVerifySri(item.numeroAutorizacion)}><ExternalLink className="mr-1 h-3 w-3" />VERIFICAR</Button></TableCell>
@@ -345,11 +364,11 @@ export function RetentionHistoryTable() {
         <TableCell className="p-2 text-xs">{item.numeroFactura}</TableCell>
         <TableCell className="font-mono text-right p-2 text-xs">{item.valorRetencion}</TableCell>
         <TableCell className="p-2 w-[180px]">
-          <div className={cn("text-xs font-bold uppercase", getSriStatusColor(item.sriEstado))}>
+          <div className={cn("text-xs font-bold uppercase text-center", getSriStatusColor(item.sriEstado))}>
             {item.sriEstado || "N/A"}
           </div>
         </TableCell>
-        <TableCell className="p-2"><StatusBadge status={item.estado} /></TableCell>
+        <TableCell className="p-2 text-center"><StatusBadge status={item.estado} /></TableCell>
         <TableCell className="p-2 text-[10px] text-muted-foreground">{formatDate(item.createdAt)}</TableCell>
         <TableCell className="p-2 text-[10px]">{item.fechaEmision}</TableCell>
         <TableCell className="p-2"><Button size="sm" variant="outline" className="text-[10px] h-6 px-1" onClick={() => handleVerifySri(item.numeroAutorizacion)}>VERIFICAR</Button></TableCell>
@@ -361,7 +380,11 @@ export function RetentionHistoryTable() {
 
   return (
     <TooltipProvider>
-    <Card className="w-full">
+    <Card className="w-full relative overflow-hidden">
+      <div className="absolute top-4 right-6 flex items-center gap-2 text-[11px] font-mono text-muted-foreground bg-muted/30 px-2 py-1 rounded-full">
+        <Timer className="h-3 w-3" />
+        Sincro SRI en: {formatCountdown(secondsUntilSync)}
+      </div>
       <CardHeader className="pb-4">
         <CardTitle>Seguimiento de Anulaciones</CardTitle>
         <CardDescription>Sincroniza el estado del SRI y gestiona la aceptación de anulación por parte del proveedor.</CardDescription>
@@ -382,8 +405,8 @@ export function RetentionHistoryTable() {
                 <TableHead className="p-2 w-[250px]">Proveedor</TableHead>
                 <TableHead className="p-2 w-[100px]">Factura</TableHead>
                 <TableHead className="text-right p-2 w-[120px]">Valor Reten.</TableHead>
-                <TableHead className="p-2 w-[220px]">Estado SRI & Sincro</TableHead>
-                <TableHead className="p-2 w-[150px]">Estado App</TableHead>
+                <TableHead className="p-2 w-[240px] text-center">Estado SRI & Sincro</TableHead>
+                <TableHead className="p-2 w-[150px] text-center">Estado App</TableHead>
                 <TableHead className="p-2 w-[130px]">F. Registro</TableHead>
                 <TableHead className="p-2 w-[100px]">F. Emisión</TableHead>
                 <TableHead className="p-2 w-[120px]">SRI En Línea</TableHead>
