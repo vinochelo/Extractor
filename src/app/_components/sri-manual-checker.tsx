@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { consultarFacturaSRI, SriResponse } from "@/lib/sri-service";
-import { Loader2, Search, CheckCircle2, AlertCircle, Clock, Info, ShieldCheck, Building2, FileText, CalendarDays, MessageSquare } from "lucide-react";
+import { Loader2, Search, CheckCircle2, AlertCircle, Clock, ShieldCheck, Building2, FileText, CalendarDays, MessageSquare, Fingerprint } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { format } from "date-fns";
@@ -59,7 +59,7 @@ export function SriManualChecker() {
   };
 
   const formatSriDate = (dateString?: string) => {
-    if (!dateString) return "N/A";
+    if (!dateString) return "No disponible";
     try {
       return format(new Date(dateString), "d 'de' MMMM 'de' yyyy, HH:mm:ss", { locale: es });
     } catch {
@@ -136,7 +136,8 @@ export function SriManualChecker() {
                 {getStatusIcon(result.estado)}
                 <span>Estado: {result.estado}</span>
               </div>
-              {(result.mensaje || result.debug_sri_response?.EstadoAutorizacionComprobante?.mensajes) && (
+              
+              {(result.mensaje || extraInfo?.mensajes) && (
                 <div className="text-sm font-medium flex gap-3 p-4 bg-background/50 rounded-xl border border-current/20">
                   <MessageSquare className="h-5 w-5 shrink-0 mt-0.5" />
                   <div>
@@ -144,7 +145,9 @@ export function SriManualChecker() {
                     <p>{result.mensaje || "Revisa los detalles técnicos del SRI a continuación."}</p>
                     {extraInfo?.mensajes && (
                        <div className="mt-2 text-xs font-mono opacity-80 bg-black/5 p-2 rounded">
-                          {JSON.stringify(extraInfo.mensajes, null, 2)}
+                          {typeof extraInfo.mensajes === 'string' 
+                            ? extraInfo.mensajes 
+                            : JSON.stringify(extraInfo.mensajes, null, 2)}
                        </div>
                     )}
                   </div>
@@ -175,6 +178,14 @@ export function SriManualChecker() {
                 <div>
                   <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Fecha de Autorización</p>
                   <p className="font-semibold">{formatSriDate(result.fechaAutorizacion || extraInfo?.fechaAutorizacion)}</p>
+                </div>
+              </div>
+
+              <div className="p-4 bg-muted/30 rounded-xl border border-border flex items-start gap-3 md:col-span-2">
+                <Fingerprint className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+                <div className="overflow-hidden w-full">
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Clave de Acceso Verificada</p>
+                  <p className="font-mono text-[11px] break-all text-primary/80">{extraInfo?.claveAcceso || result.debug_sri_response?.EstadoAutorizacionComprobante?.claveAcceso || "No disponible"}</p>
                 </div>
               </div>
             </div>
