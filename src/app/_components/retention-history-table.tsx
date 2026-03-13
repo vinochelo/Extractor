@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useMemo, useState, useEffect } from 'react';
@@ -41,8 +40,9 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
-import { ExternalLink, FileWarning, Archive, RotateCcw, Trash2, Mail, Send, Copy, Check, FileX, RefreshCw } from 'lucide-react';
-import { format } from 'date-fns';
+import { ExternalLink, FileWarning, Archive, RotateCcw, Trash2, Mail, Send, Copy, Check, FileX, RefreshCw, Clock } from 'lucide-react';
+import { format, formatDistanceToNow } from 'date-fns';
+import { es } from 'date-fns/locale';
 import type { RetentionRecord, RetentionStatus } from '@/lib/types';
 import { StatusSelector } from './status-selector';
 import { StatusBadge } from './status-badge';
@@ -106,33 +106,20 @@ export function RetentionHistoryTable() {
     return { activeRetenciones: active, anulatedRetenciones: anulated, noRecibidoRetenciones: noRecibido };
   }, [retenciones]);
 
-  // Lógica de actualización automática cada 3 horas para registros activos
   useEffect(() => {
     if (!activeRetenciones || activeRetenciones.length === 0 || !user?.uid || !firestore) return;
-
-    // 3 horas en milisegundos
     const THREE_HOURS_MS = 3 * 60 * 60 * 1000;
     const now = new Date();
-
     const staleRetentions = activeRetenciones.filter(r => {
       if (!r.lastSriCheck) return true;
-      
-      const lastCheck = (r.lastSriCheck as any).toDate 
-        ? (r.lastSriCheck as any).toDate() 
-        : new Date(r.lastSriCheck as any);
-        
+      const lastCheck = (r.lastSriCheck as any).toDate ? (r.lastSriCheck as any).toDate() : new Date(r.lastSriCheck as any);
       return now.getTime() - lastCheck.getTime() > THREE_HOURS_MS;
     });
-
     if (staleRetentions.length > 0) {
       const processNextStale = async () => {
-        // Tomar el primero que necesite actualización
         const itemToUpdate = staleRetentions[0];
-        console.log(`Auto-actualizando SRI para: ${itemToUpdate.numeroRetencion}`);
         await handleCheckSriStatus(itemToUpdate, true);
       };
-
-      // Esperar 5 segundos antes de procesar el primer stale para no saturar al iniciar la app
       const timer = setTimeout(processNextStale, 5000);
       return () => clearTimeout(timer);
     }
@@ -164,6 +151,13 @@ export function RetentionHistoryTable() {
     }
   };
 
+  const updateStatusIfNeeded = (retention: RetentionRecord) => {
+    if (retention.estado === 'Solicitado' && firestore && user?.uid) {
+      const retentionRef = doc(firestore, `users/${user.uid}/retenciones`, retention.id);
+      updateDocumentNonBlocking(retentionRef, { estado: 'Pendiente Anular' });
+    }
+  };
+
   const generateFormattedText = (data: RetentionRecord) => {
     return desiredOrder
       .map(key => {
@@ -178,29 +172,18 @@ export function RetentionHistoryTable() {
   }
 
   const handleCopy = (data: RetentionRecord) => {
-    const fullFormattedTextForCopy = `
-Resumen de Retención:
---------------------------------
-${generateFormattedText(data)}
---------------------------------
-  `.trim();
-
+    const fullFormattedTextForCopy = `Resumen de Retención:\n--------------------------------\n${generateFormattedText(data)}\n--------------------------------`.trim();
     navigator.clipboard.writeText(fullFormattedTextForCopy).then(() => {
       setCopiedId(data.id);
-      toast({
-        title: "Copiado al portapapeles",
-        description: "Los datos de la retención han sido copiados.",
-      });
+      toast({ title: "Copiado al portapapeles", description: "Los datos de la retención han sido copiados." });
       setTimeout(() => setCopiedId(null), 2000);
     });
   };
 
   const handleBulkShareForVoiding = () => {
     const selectedItems = Object.values(selectedRetentions);
-    const emailBody = selectedItems.map(item => 
-        `Detalles de la retención a anular:\n--------------------------------\n${generateFormattedText(item)}\n--------------------------------`
-    ).join('\n\n');
-
+    selectedItems.forEach(item => updateStatusIfNeeded(item));
+    const emailBody = selectedItems.map(item => `Detalles de la retención a anular:\n--------------------------------\n${generateFormattedText(item)}\n--------------------------------`).join('\n\n');
     const subject = "Anulación de Múltiples Retenciones";
     const body = encodeURIComponent(`Buenos días,\n\nFavor su ayuda anulando las retenciones adjuntas.\n\n${emailBody}`);
     window.location.href = `mailto:?subject=${subject}&body=${body}`;
@@ -208,15 +191,10 @@ ${generateFormattedText(data)}
 
   const handleBulkRequestSriAcceptance = () => {
     const selectedItems = Object.values(selectedRetentions);
+    selectedItems.forEach(item => updateStatusIfNeeded(item));
     const groupedByProvider = selectedItems.reduce((acc, item) => {
         const key = item.rucProveedor || 'unknown';
-        if (!acc[key]) {
-            acc[key] = {
-                providerName: item.razonSocialProveedor,
-                ruc: item.rucProveedor,
-                items: []
-            };
-        }
+        if (!acc[key]) acc[key] = { providerName: item.razonSocialProveedor, ruc: item.rucProveedor, items: [] };
         acc[key].items.push(item);
         return acc;
     }, {} as Record<string, { providerName: string; ruc: string; items: RetentionRecord[] }>);
@@ -225,87 +203,43 @@ ${generateFormattedText(data)}
         const emailsSet = new Set<string>();
         group.items.forEach(item => {
             const combined = getAllEmailsForProvider(item.rucProveedor, item.emailProveedor);
-            combined.split(',').forEach(e => {
-                if(e.trim()) emailsSet.add(e.trim().toLowerCase());
-            });
+            combined.split(',').forEach(e => { if(e.trim()) emailsSet.add(e.trim().toLowerCase()); });
         });
-        
         const providerEmails = Array.from(emailsSet).join(',');
         const subject = `Anulación de retenciones`;
-        const itemsBody = group.items.map(item => 
-            `Detalles de la retención:\n--------------------------------\n${generateFormattedText(item)}\n--------------------------------`
-        ).join('\n\n');
-        
+        const itemsBody = group.items.map(item => `Detalles de la retención:\n--------------------------------\n${generateFormattedText(item)}\n--------------------------------`).join('\n\n');
         const emailBody = `Estimados ${group.providerName},\n\nPor medio de la presente, solicitamos su apoyo revisando en el portal del SRI la anulación correspondiente a las siguientes retenciones:\n\n${itemsBody}\n\nAgradecemos su pronta gestión.`;
-        
-        const body = encodeURIComponent(emailBody);
-        window.open(`mailto:${providerEmails}?subject=${subject}&body=${body}`);
+        window.open(`mailto:${providerEmails}?subject=${subject}&body=${encodeURIComponent(emailBody)}`);
     });
   };
 
   const handleShareForVoiding = (data: RetentionRecord) => {
+    updateStatusIfNeeded(data);
     const formattedTextForEmail = generateFormattedText(data);
     const subject = "Anulación de Retención";
-    const emailBody = `Buenos días,
-
-Favor su ayuda anulando la retención adjunta.
-
-Detalles de la retención a anular:
---------------------------------
-${formattedTextForEmail}
---------------------------------
-`;
-    const body = encodeURIComponent(emailBody);
-    window.location.href = `mailto:?subject=${subject}&body=${body}`;
+    const emailBody = `Buenos días,\n\nFavor su ayuda anulando la retención adjunta.\n\nDetalles de la retención a anular:\n--------------------------------\n${formattedTextForEmail}\n--------------------------------\n`;
+    window.location.href = `mailto:?subject=${subject}&body=${encodeURIComponent(emailBody)}`;
   };
 
   const handleRequestSriAcceptance = (data: RetentionRecord) => {
+    updateStatusIfNeeded(data);
     const providerEmails = getAllEmailsForProvider(data.rucProveedor, data.emailProveedor);
     const formattedTextForEmail = generateFormattedText(data);
     const subject = `Anulación retención ${data.numeroRetencion}`;
-    const emailBody = `Estimados ${data.razonSocialProveedor},
-
-Por medio de la presente, solicitamos su apoyo revisando en el portal del SRI la anulación correspondiente a la siguiente retención:
-
-Detalles de la retención:
---------------------------------
-${formattedTextForEmail}
---------------------------------
-
-Agradecemos su pronta gestión.
-`;
-    const body = encodeURIComponent(emailBody);
-    window.location.href = `mailto:${providerEmails}?subject=${subject}&body=${body}`;
+    const emailBody = `Estimados ${data.razonSocialProveedor},\n\nPor medio de la presente, solicitamos su apoyo revisando en el portal del SRI la anulación correspondiente a la siguiente retención:\n\nDetalles de la retención:\n--------------------------------\n${formattedTextForEmail}\n--------------------------------\n\nAgradecemos su pronta gestión.\n`;
+    window.location.href = `mailto:${providerEmails}?subject=${subject}&body=${encodeURIComponent(emailBody)}`;
   };
 
   const handleCheckSriStatus = async (item: RetentionRecord, silent = false) => {
     if (!firestore || !user?.uid) return;
-    
     if (!silent) setCheckingSriId(item.id);
     try {
       const sriData = await consultarFacturaSRI(item.numeroAutorizacion);
       const retentionRef = doc(firestore, `users/${user.uid}/retenciones`, item.id);
-      
-      updateDocumentNonBlocking(retentionRef, { 
-        sriEstado: sriData.estado,
-        sriMensaje: sriData.mensaje || null,
-        lastSriCheck: new Date()
-      });
-
-      if (!silent) {
-        toast({
-          title: 'SRI Actualizado',
-          description: `Estado SRI para ${item.numeroRetencion}: ${sriData.estado}`,
-        });
-      }
+      updateDocumentNonBlocking(retentionRef, { sriEstado: sriData.estado, sriMensaje: sriData.mensaje || null, lastSriCheck: new Date() });
+      if (!silent) toast({ title: 'SRI Actualizado', description: `Estado SRI para ${item.numeroRetencion}: ${sriData.estado}` });
     } catch (err: any) {
-      if (!silent) {
-        toast({
-          variant: 'destructive',
-          title: 'Error SRI',
-          description: 'No se pudo consultar el estado del SRI en este momento.',
-        });
-      }
+      if (!silent) toast({ variant: 'destructive', title: 'Error SRI', description: 'No se pudo consultar el estado del SRI.' });
     } finally {
       if (!silent) setCheckingSriId(null);
     }
@@ -313,364 +247,160 @@ Agradecemos su pronta gestión.
 
   const handleRevertStatus = (retention: RetentionRecord) => {
     if (!firestore || !user?.uid) return;
-
     let previousStatus: RetentionStatus | null = null;
-    if (retention.estado === 'Pendiente Anular') {
-      previousStatus = 'Solicitado';
-    } else if (retention.estado === 'Anulado' || retention.estado === 'No Recibido') {
-      previousStatus = 'Pendiente Anular';
-    }
-    
+    if (retention.estado === 'Pendiente Anular') previousStatus = 'Solicitado';
+    else if (retention.estado === 'Anulado' || retention.estado === 'No Recibido') previousStatus = 'Pendiente Anular';
     if (previousStatus) {
         const retentionRef = doc(firestore, `users/${user.uid}/retenciones`, retention.id);
         updateDocumentNonBlocking(retentionRef, { estado: previousStatus });
-        toast({
-            title: 'Estado Revertido',
-            description: `La retención ha vuelto al estado: ${previousStatus}.`,
-        });
+        toast({ title: 'Estado Revertido', description: `La retención ha vuelto al estado: ${previousStatus}.` });
     }
   };
 
   const handleDelete = () => {
     if (!firestore || !user?.uid || !retentionToDelete) return;
-    
     const retentionRef = doc(firestore, `users/${user.uid}/retenciones`, retentionToDelete.id);
     deleteDocumentNonBlocking(retentionRef);
-    
-    toast({
-      title: 'Retención Eliminada',
-      description: `La retención ha sido eliminada permanentemente.`,
-    });
+    toast({ title: 'Retención Eliminada', description: `La retención ha sido eliminada.` });
     setRetentionToDelete(null);
   };
   
   const handleVerifySri = (numeroAutorizacion: string) => {
     navigator.clipboard.writeText(numeroAutorizacion).then(() => {
-      toast({
-        title: 'Copiado al portapapeles',
-        description: 'El número de autorización ha sido copiado.',
-      });
+      toast({ title: 'Copiado al portapapeles', description: 'El número de autorización ha sido copiado.' });
       window.open('https://srienlinea.sri.gob.ec/comprobantes-electronicos-internet/publico/validezComprobantes.jsf?pathMPT=Facturaci%F3n%20Electr%F3nica&actualMPT=Validez%20de%20comprobantes', '_blank', 'noopener,noreferrer');
     });
   };
 
   const formatDate = (date: any) => {
     if (!date) return 'N/A';
-    if (date.toDate) return format(date.toDate(), 'dd/MM/yyyy HH:mm');
-    try {
-      return format(new Date(date), 'dd/MM/yyyy HH:mm');
-    } catch {
-      return 'Fecha inválida';
-    }
+    const d = date.toDate ? date.toDate() : new Date(date);
+    return format(d, 'dd/MM/yyyy HH:mm');
+  };
+
+  const formatRelativeTime = (date: any) => {
+    if (!date) return '';
+    const d = date.toDate ? date.toDate() : new Date(date);
+    return formatDistanceToNow(d, { addSuffix: true, locale: es });
   };
 
   const getSriStatusColor = (estado?: string) => {
     if (!estado) return "text-muted-foreground";
     const status = estado.toUpperCase();
-    if (status === "AUTORIZADO") return "text-green-600 font-bold";
-    if (status === "POR PROCESAR" || status === "RECIBIDO") return "text-yellow-600 font-bold";
-    if (status === "NO AUTORIZADO" || status === "RECHAZADO" || status === "FUERA DE RANGO") return "text-destructive font-bold";
-    return "text-foreground font-semibold";
+    if (status === "AUTORIZADO") return "text-foreground"; // Negro (Foreground)
+    if (status === "POR PROCESAR" || status === "RECIBIDO" || status.includes("PENDIENTE")) return "text-orange-500"; // Naranja
+    if (status === "ANULADO" || status === "CANCELADO") return "text-green-600"; // Verde
+    if (status.includes("RECHAZADO") || status.includes("ERROR") || status.includes("NO AUTORIZADO")) return "text-destructive";
+    return "text-foreground";
   };
-
-  const renderSkeleton = () =>
-    Array.from({ length: 3 }).map((_, i) => (
-      <TableRow key={i}>
-        <TableCell className="p-2"><Skeleton className="h-4 w-4" /></TableCell>
-        <TableCell className="py-2 px-2"><Skeleton className="h-9 w-24" /></TableCell>
-        <TableCell className="py-2 px-2"><Skeleton className="h-4 w-24" /></TableCell>
-        <TableCell className="py-2 px-2"><Skeleton className="h-4 w-40" /></TableCell>
-        <TableCell className="py-2 px-2"><Skeleton className="h-4 w-20" /></TableCell>
-        <TableCell className="py-2 px-2"><Skeleton className="h-4 w-20" /></TableCell>
-        <TableCell className="py-2 px-2"><Skeleton className="h-6 w-24" /></TableCell>
-        <TableCell className="py-2 px-2"><Skeleton className="h-4 w-28" /></TableCell>
-        <TableCell className="py-2 px-2"><Skeleton className="h-4 w-28" /></TableCell>
-        <TableCell className="py-2 px-2"><Skeleton className="h-9 w-32" /></TableCell>
-        <TableCell className="py-2 px-2"><Skeleton className="h-4 w-24" /></TableCell>
-        <TableCell className="py-2 px-2"><Skeleton className="h-4 w-32" /></TableCell>
-      </TableRow>
-    ));
 
   const renderTableRows = (items: RetentionRecord[]) => {
-    if (items.length === 0) {
-      return (
-        <TableRow>
-          <TableCell colSpan={13} className="h-24 text-center">
-            No hay retenciones en esta categoría.
-          </TableCell>
-        </TableRow>
-      );
-    }
+    if (items.length === 0) return <TableRow><TableCell colSpan={13} className="h-24 text-center">No hay retenciones.</TableCell></TableRow>;
     return items.map((item: RetentionRecord) => (
       <TableRow key={item.id} data-state={selectedRetentions[item.id] ? 'selected' : ''}>
-        <TableCell className="p-2">
-            <Checkbox
-                checked={!!selectedRetentions[item.id]}
-                onCheckedChange={(value) => handleSelectRetention(item, !!value)}
-                aria-label="Seleccionar retención"
-            />
-        </TableCell>
+        <TableCell className="p-2"><Checkbox checked={!!selectedRetentions[item.id]} onCheckedChange={(value) => handleSelectRetention(item, !!value)} /></TableCell>
         <TableCell className="p-2">
             <div className="flex items-center gap-1">
-                <Tooltip>
-                    <TooltipTrigger asChild>
-                        <Button variant="ghost" size="icon" onClick={() => handleShareForVoiding(item)} disabled={selectedCount > 0}>
-                            <Mail className="h-4 w-4" />
-                        </Button>
-                    </TooltipTrigger>
-                    <TooltipContent><p>Email para Anular</p></TooltipContent>
-                </Tooltip>
-                <Tooltip>
-                    <TooltipTrigger asChild>
-                        <Button variant="ghost" size="icon" onClick={() => handleRequestSriAcceptance(item)} disabled={selectedCount > 0}>
-                            <Send className="h-4 w-4" />
-                        </Button>
-                    </TooltipTrigger>
-                    <TooltipContent><p>Solicitar Aceptación SRI</p></TooltipContent>
-                </Tooltip>
-                <Tooltip>
-                    <TooltipTrigger asChild>
-                        <Button variant="ghost" size="icon" onClick={() => handleCopy(item)}>
-                            {copiedId === item.id ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
-                        </Button>
-                    </TooltipTrigger>
-                    <TooltipContent><p>Copiar Datos</p></TooltipContent>
-                </Tooltip>
+                <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" onClick={() => handleShareForVoiding(item)} disabled={selectedCount > 0}><Mail className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent><p>Email para Anular</p></TooltipContent></Tooltip>
+                <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" onClick={() => handleRequestSriAcceptance(item)} disabled={selectedCount > 0}><Send className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent><p>Solicitar Aceptación SRI</p></TooltipContent></Tooltip>
+                <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" onClick={() => handleCopy(item)}><Check className={cn("h-4 w-4", copiedId === item.id ? "text-green-500" : "opacity-0")} /><Copy className={cn("h-4 w-4 absolute", copiedId === item.id && "opacity-0")} /></Button></TooltipTrigger><TooltipContent><p>Copiar Datos</p></TooltipContent></Tooltip>
             </div>
         </TableCell>
         <TableCell className="font-mono p-2">{item.numeroRetencion}</TableCell>
         <TableCell className="font-medium p-2 w-[250px] truncate">{item.razonSocialProveedor}</TableCell>
         <TableCell className="p-2 w-[100px]">{item.numeroFactura}</TableCell>
-        <TableCell className="font-mono text-right p-2 w-[140px]">{item.valorRetencion}</TableCell>
-        <TableCell className="p-2 w-[150px]"><StatusSelector retention={item} /></TableCell>
-        <TableCell className="p-2 w-[150px]">
-          <div className="flex flex-col gap-1">
-            <div className={cn("text-xs uppercase truncate", getSriStatusColor(item.sriEstado))}>
+        <TableCell className="font-mono text-right p-2 w-[120px]">{item.valorRetencion}</TableCell>
+        <TableCell className="p-2 w-[220px]">
+          <div className="flex flex-col gap-0.5">
+            <div className={cn("text-lg font-bold uppercase tracking-tight leading-none", getSriStatusColor(item.sriEstado))}>
               {item.sriEstado || "NO CONSULTADO"}
             </div>
-            <Button 
-              size="sm" 
-              variant="outline" 
-              className="h-7 text-[10px] px-2"
-              onClick={() => handleCheckSriStatus(item)}
-              disabled={checkingSriId === item.id}
-            >
-              {checkingSriId === item.id ? <RefreshCw className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3 mr-1" />}
+            <div className={cn("text-[10px] flex items-center gap-1 font-medium", getSriStatusColor(item.sriEstado))}>
+              <Clock className="h-2.5 w-2.5" />
+              {item.lastSriCheck ? formatRelativeTime(item.lastSriCheck) : 'Nunca verificado'}
+            </div>
+            <Button size="sm" variant="outline" className="h-6 text-[9px] px-2 mt-1 w-fit" onClick={() => handleCheckSriStatus(item)} disabled={checkingSriId === item.id}>
+              {checkingSriId === item.id ? <RefreshCw className="h-2.5 w-2.5 animate-spin" /> : <RefreshCw className="h-2.5 w-2.5 mr-1" />}
               ACTUALIZAR SRI
             </Button>
           </div>
         </TableCell>
-        <TableCell className="p-2 w-[140px] text-xs">{formatDate(item.createdAt)}</TableCell>
+        <TableCell className="p-2 w-[150px]"><StatusSelector retention={item} /></TableCell>
+        <TableCell className="p-2 w-[130px] text-xs text-muted-foreground">{formatDate(item.createdAt)}</TableCell>
         <TableCell className="p-2 w-[100px] text-xs">{item.fechaEmision}</TableCell>
-        <TableCell className="p-2 w-[140px]">
-            <Button size="sm" variant="outline" className="text-xs h-8" onClick={() => handleVerifySri(item.numeroAutorizacion)}>
-                <ExternalLink className="mr-1 h-3 w-3" />
-                VERIFICAR
-            </Button>
-        </TableCell>
-        <TableCell className="p-2 w-[100px] text-center">
-          <div className="flex items-center justify-center gap-1">
-            {item.estado !== 'Solicitado' && (
-              <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => handleRevertStatus(item)}>
-                  <RotateCcw className="h-4 w-4" />
-              </Button>
-            )}
-            <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => setRetentionToDelete(item)}>
-                <Trash2 className="h-4 w-4" />
-            </Button>
-          </div>
-        </TableCell>
-        <TableCell className="p-2"><span className="font-mono text-[10px] break-all">{item.numeroAutorizacion}</span></TableCell>
+        <TableCell className="p-2 w-[120px]"><Button size="sm" variant="outline" className="text-xs h-7" onClick={() => handleVerifySri(item.numeroAutorizacion)}><ExternalLink className="mr-1 h-3 w-3" />VERIFICAR</Button></TableCell>
+        <TableCell className="p-2 w-[80px] text-center"><div className="flex items-center justify-center gap-1">{item.estado !== 'Solicitado' && <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => handleRevertStatus(item)}><RotateCcw className="h-3.5 w-3.5" /></Button>}<Button size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => setRetentionToDelete(item)}><Trash2 className="h-3.5 w-3.5" /></Button></div></TableCell>
+        <TableCell className="p-2"><span className="font-mono text-[9px] text-muted-foreground break-all">{item.numeroAutorizacion}</span></TableCell>
       </TableRow>
     ));
   };
-  
+
   const renderArchivedTableRows = (items: RetentionRecord[]) => {
-    if (items.length === 0) {
-      return (
-        <TableRow>
-          <TableCell colSpan={13} className="h-24 text-center">
-            No hay retenciones en esta categoría.
-          </TableCell>
-        </TableRow>
-      );
-    }
+    if (items.length === 0) return <TableRow><TableCell colSpan={13} className="h-24 text-center">Vacio.</TableCell></TableRow>;
     return items.map((item: RetentionRecord) => (
       <TableRow key={item.id}>
-         <TableCell className="p-2">
-            <div className="flex items-center gap-1">
-                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleShareForVoiding(item)}><Mail className="h-4 w-4" /></Button>
-                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleRequestSriAcceptance(item)}><Send className="h-4 w-4" /></Button>
-                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleCopy(item)}>
-                    {copiedId === item.id ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
-                </Button>
-            </div>
-        </TableCell>
-        <TableCell className="font-mono p-2">{item.numeroRetencion}</TableCell>
-        <TableCell className="font-medium p-2 w-[250px] truncate">{item.razonSocialProveedor}</TableCell>
-        <TableCell className="p-2 w-[100px]">{item.numeroFactura}</TableCell>
-        <TableCell className="font-mono text-right p-2 w-[140px]">{item.valorRetencion}</TableCell>
-        <TableCell className="p-2 w-[150px]"><StatusBadge status={item.estado} /></TableCell>
-        <TableCell className="p-2 w-[150px]">
-          <div className="flex flex-col gap-1">
-            <div className={cn("text-xs uppercase truncate", getSriStatusColor(item.sriEstado))}>
-              {item.sriEstado || "NO CONSULTADO"}
-            </div>
-            <Button 
-              size="sm" 
-              variant="outline" 
-              className="h-7 text-[10px] px-2"
-              onClick={() => handleCheckSriStatus(item)}
-              disabled={checkingSriId === item.id}
-            >
-              {checkingSriId === item.id ? <RefreshCw className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3 mr-1" />}
-              ACTUALIZAR SRI
-            </Button>
+         <TableCell className="p-2"><div className="flex items-center gap-1"><Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleShareForVoiding(item)}><Mail className="h-3.5 w-3.5" /></Button><Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleRequestSriAcceptance(item)}><Send className="h-3.5 w-3.5" /></Button></div></TableCell>
+        <TableCell className="font-mono p-2 text-xs">{item.numeroRetencion}</TableCell>
+        <TableCell className="font-medium p-2 text-xs truncate max-w-[150px]">{item.razonSocialProveedor}</TableCell>
+        <TableCell className="p-2 text-xs">{item.numeroFactura}</TableCell>
+        <TableCell className="font-mono text-right p-2 text-xs">{item.valorRetencion}</TableCell>
+        <TableCell className="p-2 w-[180px]">
+          <div className={cn("text-xs font-bold uppercase", getSriStatusColor(item.sriEstado))}>
+            {item.sriEstado || "N/A"}
           </div>
         </TableCell>
-        <TableCell className="p-2 w-[140px] text-xs">{formatDate(item.createdAt)}</TableCell>
-        <TableCell className="p-2 w-[100px] text-xs">{item.fechaEmision}</TableCell>
-        <TableCell className="p-2 w-[140px]">
-            <Button size="sm" variant="outline" className="text-xs h-8" onClick={() => handleVerifySri(item.numeroAutorizacion)}>
-                <ExternalLink className="mr-1 h-3 w-3" />
-                VERIFICAR
-            </Button>
-        </TableCell>
-        <TableCell className="p-2 w-[100px] text-center">
-            <div className="flex items-center justify-center gap-1">
-                <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => handleRevertStatus(item)}><RotateCcw className="h-4 w-4" /></Button>
-                <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => setRetentionToDelete(item)}><Trash2 className="h-4 w-4" /></Button>
-            </div>
-        </TableCell>
-        <TableCell className="p-2"><span className="font-mono text-[10px] break-all">{item.numeroAutorizacion}</span></TableCell>
+        <TableCell className="p-2"><StatusBadge status={item.estado} /></TableCell>
+        <TableCell className="p-2 text-[10px] text-muted-foreground">{formatDate(item.createdAt)}</TableCell>
+        <TableCell className="p-2 text-[10px]">{item.fechaEmision}</TableCell>
+        <TableCell className="p-2"><Button size="sm" variant="outline" className="text-[10px] h-6 px-1" onClick={() => handleVerifySri(item.numeroAutorizacion)}>VERIFICAR</Button></TableCell>
+        <TableCell className="p-2 text-center"><div className="flex items-center justify-center gap-1"><Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => handleRevertStatus(item)}><RotateCcw className="h-3 w-3" /></Button><Button size="icon" variant="ghost" className="h-6 w-6 text-destructive" onClick={() => setRetentionToDelete(item)}><Trash2 className="h-3 w-3" /></Button></div></TableCell>
+        <TableCell className="p-2"><span className="font-mono text-[9px] text-muted-foreground break-all">{item.numeroAutorizacion}</span></TableCell>
       </TableRow>
     ));
   }
 
   return (
     <TooltipProvider>
-    <Card className="w-full max-w-full">
-      <CardHeader>
-        <CardTitle>Historial de Retenciones</CardTitle>
-        <CardDescription>
-          Gestiona tus documentos y sincroniza su estado real con el SRI.
-        </CardDescription>
+    <Card className="w-full">
+      <CardHeader className="pb-4">
+        <CardTitle>Seguimiento de Anulaciones</CardTitle>
+        <CardDescription>Sincroniza el estado del SRI y gestiona la aceptación de anulación por parte del proveedor.</CardDescription>
       </CardHeader>
       <CardContent>
-        {error && (
-          <Alert variant="destructive" className="mb-4">
-            <FileWarning className="h-4 w-4" />
-            <AlertTitle>Error</AlertTitle>
-            <AlertDescription>{error.message}</AlertDescription>
-          </Alert>
-        )}
-        
+        {error && <Alert variant="destructive" className="mb-4"><FileWarning className="h-4 w-4" /><AlertTitle>Error</AlertTitle><AlertDescription>{error.message}</AlertDescription></Alert>}
         <div className="flex items-center gap-4 mb-4">
-            <Button onClick={handleBulkShareForVoiding} disabled={selectedCount === 0} size="sm">
-                <Mail className="mr-2 h-4 w-4" />
-                Email Anular ({selectedCount})
-            </Button>
-            <Button onClick={handleBulkRequestSriAcceptance} disabled={selectedCount === 0} size="sm">
-                <Send className="mr-2 h-4 w-4" />
-                Aceptación SRI ({selectedCount})
-            </Button>
+            <Button onClick={handleBulkShareForVoiding} disabled={selectedCount === 0} size="sm"><Mail className="mr-2 h-4 w-4" />Email Anular ({selectedCount})</Button>
+            <Button onClick={handleBulkRequestSriAcceptance} disabled={selectedCount === 0} size="sm"><Send className="mr-2 h-4 w-4" />Aceptación SRI ({selectedCount})</Button>
         </div>
-
-        <div className="border rounded-lg mb-4 overflow-hidden">
+        <div className="border rounded-lg mb-6 overflow-hidden">
           <Table>
             <TableHeader className="bg-muted/50">
               <TableRow>
-                <TableHead className="w-[40px] p-2">
-                  <Checkbox
-                    checked={selectedCount > 0 && selectedCount === activeRetenciones.length}
-                    onCheckedChange={(value) => handleSelectAll(!!value)}
-                    aria-label="Seleccionar todo"
-                  />
-                </TableHead>
-                <TableHead className="p-2 w-[120px]">Acciones</TableHead>
+                <TableHead className="w-[40px] p-2"><Checkbox checked={selectedCount > 0 && selectedCount === activeRetenciones.length} onCheckedChange={(value) => handleSelectAll(!!value)} /></TableHead>
+                <TableHead className="p-2 w-[120px]">Gestión</TableHead>
                 <TableHead className="p-2 w-[150px]">Nro. Retención</TableHead>
                 <TableHead className="p-2 w-[250px]">Proveedor</TableHead>
                 <TableHead className="p-2 w-[100px]">Factura</TableHead>
-                <TableHead className="text-right p-2 w-[140px]">Valor Reten.</TableHead>
+                <TableHead className="text-right p-2 w-[120px]">Valor Reten.</TableHead>
+                <TableHead className="p-2 w-[220px]">Estado SRI & Sincro</TableHead>
                 <TableHead className="p-2 w-[150px]">Estado App</TableHead>
-                <TableHead className="p-2 w-[150px]">Estado SRI</TableHead>
-                <TableHead className="p-2 w-[140px]">Creación</TableHead>
-                <TableHead className="p-2 w-[100px]">Emisión</TableHead>
-                <TableHead className="p-2 w-[140px]">Validación</TableHead>
-                <TableHead className="text-center p-2 w-[100px]">Mantenim.</TableHead>
+                <TableHead className="p-2 w-[130px]">F. Registro</TableHead>
+                <TableHead className="p-2 w-[100px]">F. Emisión</TableHead>
+                <TableHead className="p-2 w-[120px]">SRI En Línea</TableHead>
+                <TableHead className="text-center p-2 w-[80px]">Ops</TableHead>
                 <TableHead className="p-2">Autorización</TableHead>
               </TableRow>
             </TableHeader>
-            <TableBody>
-              {loading ? renderSkeleton() : renderTableRows(activeRetenciones)}
-            </TableBody>
+            <TableBody>{loading ? Array.from({ length: 3 }).map((_, i) => <TableRow key={i}><TableCell colSpan={13}><Skeleton className="h-10 w-full" /></TableCell></TableRow>) : renderTableRows(activeRetenciones)}</TableBody>
           </Table>
         </div>
-
-        <div className="space-y-4">
-          {noRecibidoRetenciones.length > 0 && (
-            <Accordion type="single" collapsible className="w-full">
-              <AccordionItem value="no-recibidas" className="border rounded-lg px-4">
-                <AccordionTrigger className="hover:no-underline">
-                  <div className="flex items-center gap-2">
-                    <FileX className="h-4 w-4 text-destructive" />
-                    <span>Retenciones No Recibidas ({noRecibidoRetenciones.length})</span>
-                  </div>
-                </AccordionTrigger>
-                <AccordionContent>
-                  <div className="border rounded-lg mt-2">
-                    <Table>
-                      <TableBody>
-                        {renderArchivedTableRows(noRecibidoRetenciones)}
-                      </TableBody>
-                    </Table>
-                  </div>
-                </AccordionContent>
-              </AccordionItem>
-            </Accordion>
-          )}
-
-          {anulatedRetenciones.length > 0 && (
-            <Accordion type="single" collapsible className="w-full">
-              <AccordionItem value="anuladas" className="border rounded-lg px-4">
-                <AccordionTrigger className="hover:no-underline">
-                  <div className="flex items-center gap-2">
-                    <Archive className="h-4 w-4 text-muted-foreground" />
-                    <span>Retenciones Anuladas ({anulatedRetenciones.length})</span>
-                  </div>
-                </AccordionTrigger>
-                <AccordionContent>
-                  <div className="border rounded-lg mt-2">
-                    <Table>
-                      <TableBody>
-                        {renderArchivedTableRows(anulatedRetenciones)}
-                      </TableBody>
-                    </Table>
-                  </div>
-                </AccordionContent>
-              </AccordionItem>
-            </Accordion>
-          )}
+        <div className="space-y-3">
+          {noRecibidoRetenciones.length > 0 && <Accordion type="single" collapsible className="w-full"><AccordionItem value="no-recibidas" className="border rounded-lg px-4 bg-muted/20"><AccordionTrigger className="hover:no-underline"><div className="flex items-center gap-2"><FileX className="h-4 w-4 text-destructive" /><span>Retenciones No Recibidas ({noRecibidoRetenciones.length})</span></div></AccordionTrigger><AccordionContent><div className="border rounded-lg mt-2 bg-background"><Table><TableBody>{renderArchivedTableRows(noRecibidoRetenciones)}</TableBody></Table></div></AccordionContent></AccordionItem></Accordion>}
+          {anulatedRetenciones.length > 0 && <Accordion type="single" collapsible className="w-full"><AccordionItem value="anuladas" className="border rounded-lg px-4 bg-muted/20"><AccordionTrigger className="hover:no-underline"><div className="flex items-center gap-2"><Archive className="h-4 w-4 text-muted-foreground" /><span>Retenciones Anuladas ({anulatedRetenciones.length})</span></div></AccordionTrigger><AccordionContent><div className="border rounded-lg mt-2 bg-background"><Table><TableBody>{renderArchivedTableRows(anulatedRetenciones)}</TableBody></Table></div></AccordionContent></AccordionItem></Accordion>}
         </div>
       </CardContent>
     </Card>
-
-    <AlertDialog open={!!retentionToDelete} onOpenChange={(open) => !open && setRetentionToDelete(null)}>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>¿Eliminar retención?</AlertDialogTitle>
-          <AlertDialogDescription>
-            La retención <strong>{retentionToDelete?.numeroRetencion}</strong> será eliminada permanentemente.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel onClick={() => setRetentionToDelete(null)}>Cancelar</AlertDialogCancel>
-          <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-            Eliminar
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+    <AlertDialog open={!!retentionToDelete} onOpenChange={(open) => !open && setRetentionToDelete(null)}><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>¿Eliminar retención?</AlertDialogTitle><AlertDialogDescription>La retención <strong>{retentionToDelete?.numeroRetencion}</strong> será eliminada permanentemente.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel onClick={() => setRetentionToDelete(null)}>Cancelar</AlertDialogCancel><AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Eliminar</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
     </TooltipProvider>
   );
 }

@@ -13,17 +13,21 @@ export function StatusBadge({ status, className }: StatusBadgeProps) {
     const getBadgeVariant = (status: RetentionStatus) => {
         switch(status) {
           case 'Solicitado':
-            return 'success';
+            return 'outline';
           case 'Pendiente Anular':
-            return 'warning';
+            return 'outline';
           case 'Anulado':
-            return 'neutral';
+            return 'secondary';
           case 'No Recibido':
-            return 'destructive';
+            return 'outline';
           default:
             return 'outline';
         }
       };
 
-    return <Badge variant={getBadgeVariant(status)} className={cn(className)}>{status}</Badge>;
+    return (
+        <Badge variant={getBadgeVariant(status)} className={cn("font-medium", className)}>
+            {status}
+        </Badge>
+    );
 }
