@@ -159,7 +159,6 @@ export function RetentionHistoryTable() {
         description: `Actualizando estado actual de ${itemsToSync.length} comprobantes secuencialmente...` 
       });
       
-      // Sincronización secuencial para evitar problemas de API
       for (const item of itemsToSync) {
         await handleCheckSriStatus(item, true);
       }
@@ -176,7 +175,6 @@ export function RetentionHistoryTable() {
     });
 
     try {
-      // Sincronización secuencial de todos los registros activos
       for (const item of activeRetenciones) {
         await handleCheckSriStatus(item, true);
       }
@@ -661,9 +659,9 @@ export function RetentionHistoryTable() {
         <AlertDialogContent className="rounded-3xl border-2">
             <AlertDialogHeader>
                 <AlertDialogTitle className="text-xl font-black">¿Eliminar registro?</AlertDialogTitle>
-                <AccordionDescription className="text-base">
+                <AlertDialogDescription className="text-base">
                     La retención <span className="font-mono font-bold text-primary underline decoration-2">{retentionToDelete?.numeroRetencion}</span> será eliminada de forma irreversible.
-                </AccordionDescription>
+                </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter className="gap-3">
                 <AlertDialogCancel onClick={() => setRetentionToDelete(null)} className="rounded-xl font-bold text-sm h-11 px-6">Cancelar</AlertDialogCancel>
