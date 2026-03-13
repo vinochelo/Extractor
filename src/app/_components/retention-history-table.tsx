@@ -84,7 +84,7 @@ export function RetentionHistoryTable() {
   const [selectedRetentions, setSelectedRetentions] = useState<Record<string, RetentionRecord>>({});
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [checkingSriId, setCheckingSriId] = useState<string | null>(null);
-  const [secondsUntilSync, setSecondsUntilSync] = useState(3 * 60 * 60); // 3 horas en segundos
+  const [secondsUntilSync, setSecondsUntilSync] = useState(3600); // 1 hora por defecto
 
   const retencionesQuery = useMemoFirebase(() => {
     if (!firestore || !user?.uid) return null;
@@ -107,13 +107,34 @@ export function RetentionHistoryTable() {
     return { activeRetenciones: active, anulatedRetenciones: anulated, noRecibidoRetenciones: noRecibido };
   }, [retenciones]);
 
-  // Temporizador para la cuenta regresiva de sincronización
+  // Temporizador dinámico basado en la retención más antigua (1 hora de frecuencia)
   useEffect(() => {
     const interval = setInterval(() => {
-      setSecondsUntilSync((prev) => (prev > 0 ? prev - 1 : 3 * 60 * 60));
+      if (!activeRetenciones || activeRetenciones.length === 0) {
+          setSecondsUntilSync(3600);
+          return;
+      }
+      
+      const ONE_HOUR_MS = 60 * 60 * 1000;
+      const now = new Date();
+      
+      // Encontrar la verificación más antigua
+      let oldestCheckDate = now;
+      activeRetenciones.forEach(r => {
+          if (!r.lastSriCheck) {
+              oldestCheckDate = new Date(0); // Nunca verificado = infinitamente antiguo
+          } else {
+              const d = (r.lastSriCheck as any).toDate ? (r.lastSriCheck as any).toDate() : new Date(r.lastSriCheck as any);
+              if (d < oldestCheckDate) oldestCheckDate = d;
+          }
+      });
+
+      const elapsedMs = now.getTime() - oldestCheckDate.getTime();
+      const remainingMs = Math.max(0, ONE_HOUR_MS - elapsedMs);
+      setSecondsUntilSync(Math.floor(remainingMs / 1000));
     }, 1000);
     return () => clearInterval(interval);
-  }, []);
+  }, [activeRetenciones]);
 
   const formatCountdown = (seconds: number) => {
     const h = Math.floor(seconds / 3600);
@@ -122,23 +143,31 @@ export function RetentionHistoryTable() {
     return `${h}h ${m}m ${s}s`;
   };
 
+  // Sincronización automática de registros obsoletos (> 1 hora)
   useEffect(() => {
     if (!activeRetenciones || activeRetenciones.length === 0 || !user?.uid || !firestore) return;
-    const THREE_HOURS_MS = 3 * 60 * 60 * 1000;
+    const ONE_HOUR_MS = 60 * 60 * 1000;
     const now = new Date();
     
     const staleRetentions = activeRetenciones.filter(r => {
       if (!r.lastSriCheck) return true;
       const lastCheck = (r.lastSriCheck as any).toDate ? (r.lastSriCheck as any).toDate() : new Date(r.lastSriCheck as any);
-      return now.getTime() - lastCheck.getTime() > THREE_HOURS_MS;
+      return now.getTime() - lastCheck.getTime() > ONE_HOUR_MS;
     });
 
     if (staleRetentions.length > 0) {
+      // Ordenar para procesar la más antigua primero
+      staleRetentions.sort((a, b) => {
+          const dateA = (a.lastSriCheck as any)?.toDate?.() || new Date(a.lastSriCheck as any || 0);
+          const dateB = (b.lastSriCheck as any)?.toDate?.() || new Date(b.lastSriCheck as any || 0);
+          return dateA.getTime() - dateB.getTime();
+      });
+
       const processNextStale = async () => {
         const itemToUpdate = staleRetentions[0];
         await handleCheckSriStatus(itemToUpdate, true);
-        setSecondsUntilSync(3 * 60 * 60); // Reset timer after a check
       };
+      // Esperar 5 segundos antes de procesar para evitar saturación
       const timer = setTimeout(processNextStale, 5000);
       return () => clearTimeout(timer);
     }
