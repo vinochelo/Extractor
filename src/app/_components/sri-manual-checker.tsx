@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { consultarFacturaSRI } from "@/lib/sri-service";
-import { Loader2, Search, CheckCircle2, AlertCircle, Clock, ShieldCheck, Building2, FileText, CalendarDays, MessageSquare, Fingerprint } from "lucide-react";
+import { Loader2, Search, CheckCircle2, AlertCircle, Clock, ShieldCheck, Building2, FileText, CalendarDays, MessageSquare, Fingerprint, CalendarOff } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { format } from "date-fns";
@@ -31,7 +31,6 @@ export function SriManualChecker() {
 
     setLoading(true);
     setError(null);
-    setResult(null);
 
     try {
       const data = await consultarFacturaSRI(clave);
@@ -47,6 +46,7 @@ export function SriManualChecker() {
     const status = (estado || "").toUpperCase();
     if (status === "AUTORIZADO") return "bg-green-500/10 border-green-500/50 text-green-700";
     if (status === "POR PROCESAR" || status === "RECIBIDO") return "bg-yellow-500/10 border-yellow-500/50 text-yellow-700";
+    if (status === "FUERA DE RANGO") return "bg-orange-500/10 border-orange-500/50 text-orange-700";
     if (status === "NO AUTORIZADO" || status === "FUERA DE RANGO" || status === "RECHAZADO") return "bg-destructive/10 border-destructive/50 text-destructive";
     return "bg-muted border-border text-muted-foreground";
   };
@@ -55,6 +55,7 @@ export function SriManualChecker() {
     const status = (estado || "").toUpperCase();
     if (status === "AUTORIZADO") return <CheckCircle2 className="h-6 w-6" />;
     if (status === "POR PROCESAR") return <Clock className="h-6 w-6" />;
+    if (status === "FUERA DE RANGO") return <CalendarOff className="h-6 w-6" />;
     return <AlertCircle className="h-6 w-6" />;
   };
 
@@ -66,6 +67,8 @@ export function SriManualChecker() {
       return dateString;
     }
   };
+
+  const isFueraDeRango = (result?.estado || "").toUpperCase() === "FUERA DE RANGO";
 
   // Extraer información directamente de la respuesta de la API según la estructura confirmada
   const infoSRI = result?.debug_sri_response?.EstadoAutorizacionComprobante || {};
@@ -144,56 +147,65 @@ export function SriManualChecker() {
                 <span>Estado: {result.estado || "No disponible"}</span>
               </div>
               
-              {mensajes && (
-                <div className="text-sm font-medium flex gap-3 p-4 bg-background/50 rounded-xl border border-current/20">
-                  <MessageSquare className="h-5 w-5 shrink-0 mt-0.5" />
-                  <div>
-                    <span className="font-bold opacity-70 block mb-1">Información Detallada:</span>
-                    <p>{typeof mensajes === 'string' ? mensajes : "El SRI ha devuelto detalles técnicos adicionales."}</p>
-                    {typeof mensajes !== 'string' && (
-                       <div className="mt-2 text-xs font-mono opacity-80 bg-black/5 p-2 rounded">
-                          {JSON.stringify(mensajes, null, 2)}
-                       </div>
-                    )}
-                  </div>
+              {isFueraDeRango ? (
+                <div className="mt-2 p-4 bg-orange-500/20 rounded-xl border border-orange-500/30 text-orange-900 font-semibold flex items-center gap-3 animate-in fade-in slide-in-from-left-4">
+                  <AlertCircle className="h-6 w-6 shrink-0" />
+                  <p>Solo se puede consultar comprobantes de hasta 30 días antes de su emisión.</p>
                 </div>
+              ) : (
+                mensajes && (
+                  <div className="text-sm font-medium flex gap-3 p-4 bg-background/50 rounded-xl border border-current/20">
+                    <MessageSquare className="h-5 w-5 shrink-0 mt-0.5" />
+                    <div>
+                      <span className="font-bold opacity-70 block mb-1">Información Detallada:</span>
+                      <p>{typeof mensajes === 'string' ? mensajes : "El SRI ha devuelto detalles técnicos adicionales."}</p>
+                      {typeof mensajes !== 'string' && (
+                         <div className="mt-2 text-xs font-mono opacity-80 bg-black/5 p-2 rounded">
+                            {JSON.stringify(mensajes, null, 2)}
+                         </div>
+                      )}
+                    </div>
+                  </div>
+                )
               )}
             </div>
 
-            {/* Detalles Técnicos */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="p-4 bg-muted/30 rounded-xl border border-border flex items-start gap-3">
-                <FileText className="h-5 w-5 text-primary shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Tipo de Comprobante</p>
-                  <p className="font-semibold">{tipoComprobante}</p>
+            {/* Detalles Técnicos - Ocultos si es Fuera de Rango */}
+            {!isFueraDeRango && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="p-4 bg-muted/30 rounded-xl border border-border flex items-start gap-3">
+                  <FileText className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Tipo de Comprobante</p>
+                    <p className="font-semibold">{tipoComprobante}</p>
+                  </div>
                 </div>
-              </div>
-              
-              <div className="p-4 bg-muted/30 rounded-xl border border-border flex items-start gap-3">
-                <Building2 className="h-5 w-5 text-primary shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">RUC Emisor</p>
-                  <p className="font-semibold font-mono">{rucEmisor}</p>
+                
+                <div className="p-4 bg-muted/30 rounded-xl border border-border flex items-start gap-3">
+                  <Building2 className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">RUC Emisor</p>
+                    <p className="font-semibold font-mono">{rucEmisor}</p>
+                  </div>
                 </div>
-              </div>
 
-              <div className="p-4 bg-muted/30 rounded-xl border border-border flex items-start gap-3 md:col-span-2">
-                <CalendarDays className="h-5 w-5 text-primary shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Fecha de Autorización</p>
-                  <p className="font-semibold">{formatSriDate(fechaAutorizacion)}</p>
+                <div className="p-4 bg-muted/30 rounded-xl border border-border flex items-start gap-3 md:col-span-2">
+                  <CalendarDays className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Fecha de Autorización</p>
+                    <p className="font-semibold">{formatSriDate(fechaAutorizacion)}</p>
+                  </div>
                 </div>
-              </div>
 
-              <div className="p-4 bg-muted/30 rounded-xl border border-border flex items-start gap-3 md:col-span-2">
-                <Fingerprint className="h-5 w-5 text-primary shrink-0 mt-0.5" />
-                <div className="overflow-hidden w-full">
-                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Clave de Acceso Verificada</p>
-                  <p className="font-mono text-[11px] break-all text-primary/80">{claveAccesoVerificada}</p>
+                <div className="p-4 bg-muted/30 rounded-xl border border-border flex items-start gap-3 md:col-span-2">
+                  <Fingerprint className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+                  <div className="overflow-hidden w-full">
+                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Clave de Acceso Verificada</p>
+                    <p className="font-mono text-[11px] break-all text-primary/80">{claveAccesoVerificada}</p>
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
           </div>
         )}
       </CardContent>
