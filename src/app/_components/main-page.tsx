@@ -20,6 +20,7 @@ import { SriManualChecker } from './sri-manual-checker';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { consultarFacturaSRI } from '@/lib/sri-service';
 import { FileText, LayoutDashboard, Loader2 } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export function MainPage() {
   const { user, isUserLoading } = useUser();
@@ -146,8 +147,8 @@ export function MainPage() {
 
   return (
     <main className="min-h-screen bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-50 via-background to-background">
-      <div className="container mx-auto px-2 py-4 md:py-8 max-w-[88%] transition-all duration-300">
-        <header className="text-center mb-6 relative">
+      <div className="container mx-auto px-4 py-8 max-w-[88%] transition-all duration-300">
+        <header className="text-center mb-10 relative">
           <h1 className="font-headline text-5xl md:text-7xl font-black tracking-tighter text-primary mb-2 filter drop-shadow-sm">
             Status Retenciones
           </h1>
@@ -159,28 +160,28 @@ export function MainPage() {
 
         {mounted ? (
           <Tabs defaultValue="historial" className="space-y-6">
-            <div className="flex justify-center mb-4">
-              <TabsList className="grid w-full max-w-sm grid-cols-2 h-11 p-1 bg-muted/40 backdrop-blur-md rounded-xl border border-border/50 shadow-lg">
-                <TabsTrigger value="historial" className="rounded-lg py-1.5 font-bold text-xs tracking-tight transition-all data-[state=active]:bg-background data-[state=active]:shadow-md data-[state=active]:text-primary flex items-center gap-2">
-                  <LayoutDashboard className="h-3.5 w-3.5" />
+            <div className="flex justify-center mb-6">
+              <TabsList className="grid w-full max-w-sm grid-cols-2 h-12 p-1 bg-muted/40 backdrop-blur-md rounded-xl border border-border/50 shadow-lg">
+                <TabsTrigger value="historial" className="rounded-lg py-2 font-bold text-sm tracking-tight transition-all data-[state=active]:bg-background data-[state=active]:shadow-md data-[state=active]:text-primary flex items-center gap-2">
+                  <LayoutDashboard className="h-4 w-4" />
                   Historial y Carga
                 </TabsTrigger>
-                <TabsTrigger value="herramientas" className="rounded-lg py-1.5 font-bold text-xs tracking-tight transition-all data-[state=active]:bg-background data-[state=active]:shadow-md data-[state=active]:text-primary flex items-center gap-2">
-                  <FileText className="h-3.5 w-3.5" />
+                <TabsTrigger value="herramientas" className="rounded-lg py-2 font-bold text-sm tracking-tight transition-all data-[state=active]:bg-background data-[state=active]:shadow-md data-[state=active]:text-primary flex items-center gap-2">
+                  <FileText className="h-4 w-4" />
                   Consultas Autorizaciones
                 </TabsTrigger>
               </TabsList>
             </div>
 
-            <TabsContent value="historial" className="space-y-8 animate-in fade-in zoom-in-95 duration-500">
+            <TabsContent value="historial" className="space-y-10 animate-in fade-in zoom-in-95 duration-500">
               {historyKey !== null && <RetentionHistoryTable key={historyKey} />}
 
-              <section className="space-y-4 max-w-4xl mx-auto">
-                <div className="text-center space-y-1">
-                  <h2 className="text-xl font-black tracking-tight">Nueva Extracción</h2>
-                  <p className="text-xs text-muted-foreground font-medium">Extrae datos automáticamente de tus archivos PDF.</p>
+              <section className="space-y-6 max-w-4xl mx-auto">
+                <div className="text-center space-y-2">
+                  <h2 className="text-2xl font-black tracking-tight">Nueva Extracción</h2>
+                  <p className="text-sm text-muted-foreground font-medium">Extrae datos automáticamente de tus archivos PDF.</p>
                 </div>
-                <div className="bg-card/40 backdrop-blur-md p-6 rounded-[1.5rem] border-2 border-dashed border-primary/10 shadow-xl transition-all hover:border-primary/30 group">
+                <div className="bg-card/40 backdrop-blur-md p-8 rounded-[2rem] border-2 border-dashed border-primary/10 shadow-xl transition-all hover:border-primary/30 group">
                   <PdfUploader
                     file={file}
                     onFileChange={handleFileChange}
@@ -198,24 +199,24 @@ export function MainPage() {
                 </div>
               )}
               
-              <section className="pt-4 border-t border-border/40 max-w-4xl mx-auto">
+              <section className="pt-8 border-t border-border/40 max-w-4xl mx-auto">
                  <EmailImporter />
               </section>
             </TabsContent>
 
-            <TabsContent value="herramientas" className="space-y-6 animate-in fade-in slide-in-from-right-10 duration-500">
+            <TabsContent value="herramientas" className="space-y-8 animate-in fade-in slide-in-from-right-10 duration-500">
               <SriManualChecker />
             </TabsContent>
           </Tabs>
         ) : (
           <div className="flex flex-col items-center justify-center py-24 space-y-4">
-            <Loader2 className="h-10 w-10 text-primary animate-spin" />
-            <p className="text-sm font-bold text-muted-foreground animate-pulse">Iniciando Dashboard...</p>
+            <Loader2 className="h-12 w-12 text-primary animate-spin" />
+            <p className="text-lg font-bold text-muted-foreground animate-pulse">Iniciando Dashboard...</p>
           </div>
         )}
         
-        <footer className="mt-12 pt-6 border-t border-border/30 text-center">
-            <p className="text-[10px] font-bold text-muted-foreground/50 uppercase tracking-[0.3em]">
+        <footer className="mt-16 pt-8 border-t border-border/30 text-center">
+            <p className="text-[11px] font-bold text-muted-foreground/50 uppercase tracking-[0.3em]">
               Status Retenciones &copy; {mounted ? new Date().getFullYear() : '2025'} • Gestión SRI Eficiente
             </p>
         </footer>
