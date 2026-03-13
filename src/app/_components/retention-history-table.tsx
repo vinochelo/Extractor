@@ -112,7 +112,7 @@ export function RetentionHistoryTable() {
     return { activeRetenciones: active, anulatedRetenciones: anulated, noRecibidoRetenciones: noRecibido };
   }, [retenciones]);
 
-  // Lógica del Cronómetro de Sincronización
+  // Lógica del Cronómetro: Calcula el tiempo hasta que la retención más antigua necesite una nueva sincronización
   useEffect(() => {
     const interval = setInterval(() => {
       if (!activeRetenciones || activeRetenciones.length === 0) {
@@ -128,11 +128,12 @@ export function RetentionHistoryTable() {
 
       activeRetenciones.forEach(r => {
           if (!r.lastSriCheck) {
-              oldestCheckDate = new Date(0); // Forzar sync inmediato si nunca se ha hecho
+              // Si nunca se ha consultado, forzar cronómetro a 0 para que sincronice de inmediato
+              oldestCheckDate = new Date(0); 
               foundCheck = true;
           } else {
               const d = (r.lastSriCheck as any).toDate ? (r.lastSriCheck as any).toDate() : new Date(r.lastSriCheck as any);
-              if (d < oldestCheckDate) {
+              if (!foundCheck || d < oldestCheckDate) {
                   oldestCheckDate = d;
                   foundCheck = true;
               }
@@ -159,30 +160,37 @@ export function RetentionHistoryTable() {
     return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   };
 
-  // Sincronización Automática
+  // Sincronización Automática en Lotes de 5
   useEffect(() => {
     if (!activeRetenciones || activeRetenciones.length === 0 || !user?.uid || !firestore) return;
+    
     const ONE_HOUR_MS = 60 * 60 * 1000;
     const now = new Date();
     
+    // Identificar retenciones "vencidas" (más de 1 hora sin consulta)
     const staleRetentions = activeRetenciones.filter(r => {
       if (!r.lastSriCheck) return true;
       const lastCheck = (r.lastSriCheck as any).toDate ? (r.lastSriCheck as any).toDate() : new Date(r.lastSriCheck as any);
-      return now.getTime() - lastCheck.getTime() > ONE_HOUR_MS;
+      return now.getTime() - lastCheck.getTime() >= ONE_HOUR_MS;
     });
 
     if (staleRetentions.length > 0) {
-      staleRetentions.sort((a, b) => {
+      // Ordenar por las más antiguas y tomar las primeras 5
+      const batchToUpdate = staleRetentions
+        .sort((a, b) => {
           const dateA = (a.lastSriCheck as any)?.toDate?.() || new Date(a.lastSriCheck as any || 0);
           const dateB = (b.lastSriCheck as any)?.toDate?.() || new Date(b.lastSriCheck as any || 0);
           return dateA.getTime() - dateB.getTime();
-      });
+        })
+        .slice(0, 5);
 
-      const processNextStale = async () => {
-        const itemToUpdate = staleRetentions[0];
-        await handleCheckSriStatus(itemToUpdate, true);
+      const processSyncBatch = async () => {
+        // Enviar peticiones concurrentes a la API
+        await Promise.all(batchToUpdate.map(item => handleCheckSriStatus(item, true)));
       };
-      const timer = setTimeout(processNextStale, 2000);
+
+      // Pequeño retardo de cortesía antes de iniciar el lote
+      const timer = setTimeout(processSyncBatch, 3000);
       return () => clearTimeout(timer);
     }
   }, [activeRetenciones, user?.uid, firestore]);
@@ -515,11 +523,11 @@ export function RetentionHistoryTable() {
             <CardTitle className="text-3xl font-black tracking-tight">Seguimiento de Anulaciones</CardTitle>
             <CardDescription className="text-base font-semibold opacity-70">Sincroniza y gestiona comunicación con proveedores.</CardDescription>
           </div>
-          <div className="flex items-center gap-4 text-xs font-black text-primary bg-primary/10 border-2 border-primary/20 px-6 py-4 rounded-2xl shadow-md animate-in zoom-in duration-500">
-            <Timer className="h-7 w-7" />
+          <div className="flex items-center gap-6 text-xs font-black text-primary bg-primary/10 border-2 border-primary/20 px-8 py-5 rounded-[1.5rem] shadow-md animate-in zoom-in duration-500">
+            <Timer className="h-9 w-9" />
             <div className="flex flex-col">
-              <span className="text-[11px] uppercase tracking-wider opacity-60">Sincronizando con SRI en:</span>
-              <span className="text-2xl font-mono leading-none mt-1">{isMounted ? formatCountdown(secondsUntilSync) : '--:--:--'}</span>
+              <span className="text-[11px] uppercase tracking-widest opacity-60">Sincronizando con SRI en:</span>
+              <span className="text-3xl font-mono leading-none mt-1.5">{isMounted ? formatCountdown(secondsUntilSync) : '--:--:--'}</span>
             </div>
           </div>
         </div>
