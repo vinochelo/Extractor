@@ -84,7 +84,7 @@ export function RetentionHistoryTable() {
   const [selectedRetentions, setSelectedRetentions] = useState<Record<string, RetentionRecord>>({});
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [checkingSriId, setCheckingSriId] = useState<string | null>(null);
-  const [secondsUntilSync, setSecondsUntilSync] = useState(3600);
+  const [secondsUntilSync, setSecondsUntilSync] = useState(0);
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
@@ -112,10 +112,11 @@ export function RetentionHistoryTable() {
     return { activeRetenciones: active, anulatedRetenciones: anulated, noRecibidoRetenciones: noRecibido };
   }, [retenciones]);
 
+  // Lógica del Cronómetro de Sincronización
   useEffect(() => {
     const interval = setInterval(() => {
       if (!activeRetenciones || activeRetenciones.length === 0) {
-          setSecondsUntilSync(3600);
+          setSecondsUntilSync(0);
           return;
       }
       
@@ -123,14 +124,25 @@ export function RetentionHistoryTable() {
       const now = new Date();
       
       let oldestCheckDate = now;
+      let foundCheck = false;
+
       activeRetenciones.forEach(r => {
           if (!r.lastSriCheck) {
-              oldestCheckDate = new Date(0);
+              oldestCheckDate = new Date(0); // Forzar sync inmediato si nunca se ha hecho
+              foundCheck = true;
           } else {
               const d = (r.lastSriCheck as any).toDate ? (r.lastSriCheck as any).toDate() : new Date(r.lastSriCheck as any);
-              if (d < oldestCheckDate) oldestCheckDate = d;
+              if (d < oldestCheckDate) {
+                  oldestCheckDate = d;
+                  foundCheck = true;
+              }
           }
       });
+
+      if (!foundCheck) {
+          setSecondsUntilSync(0);
+          return;
+      }
 
       const elapsedMs = now.getTime() - oldestCheckDate.getTime();
       const remainingMs = Math.max(0, ONE_HOUR_MS - elapsedMs);
@@ -140,12 +152,14 @@ export function RetentionHistoryTable() {
   }, [activeRetenciones]);
 
   const formatCountdown = (seconds: number) => {
+    if (seconds === 0 && (!activeRetenciones || activeRetenciones.length === 0)) return "00:00:00";
     const h = Math.floor(seconds / 3600);
     const m = Math.floor((seconds % 3600) / 60);
     const s = seconds % 60;
-    return `${h}h ${m}m ${s}s`;
+    return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   };
 
+  // Sincronización Automática
   useEffect(() => {
     if (!activeRetenciones || activeRetenciones.length === 0 || !user?.uid || !firestore) return;
     const ONE_HOUR_MS = 60 * 60 * 1000;
@@ -168,7 +182,7 @@ export function RetentionHistoryTable() {
         const itemToUpdate = staleRetentions[0];
         await handleCheckSriStatus(itemToUpdate, true);
       };
-      const timer = setTimeout(processNextStale, 5000);
+      const timer = setTimeout(processNextStale, 2000);
       return () => clearTimeout(timer);
     }
   }, [activeRetenciones, user?.uid, firestore]);
@@ -400,20 +414,20 @@ export function RetentionHistoryTable() {
               </div>
           </TableCell>
           <TableCell className="font-mono font-bold p-2 text-sm w-[130px]">{item.numeroRetencion}</TableCell>
-          <TableCell className="font-semibold p-2 w-[180px]"><div className="truncate text-sm" title={item.razonSocialProveedor}>{item.razonSocialProveedor}</div></TableCell>
+          <TableCell className="font-semibold p-2 w-[150px]"><div className="truncate text-sm" title={item.razonSocialProveedor}>{item.razonSocialProveedor}</div></TableCell>
           <TableCell className="p-2 w-[110px] font-medium text-muted-foreground text-sm">{item.numeroFactura}</TableCell>
           <TableCell className="font-mono font-bold text-right p-2 w-[110px] text-primary text-sm">{item.valorRetencion}</TableCell>
-          <TableCell className="p-2 w-[190px]">
-            <div className="flex flex-col items-center justify-center gap-1 py-1 px-2 bg-muted/30 rounded-xl border border-border/60 shadow-sm">
-              <div className={cn("text-[9px] font-black uppercase tracking-widest leading-none", getSriStatusColor(item.sriEstado))}>
+          <TableCell className="p-2 w-[200px]">
+            <div className="flex flex-col items-center justify-center gap-1.5 py-2 px-3 bg-muted/30 rounded-xl border border-border/60 shadow-sm min-h-[70px]">
+              <div className={cn("text-xs font-black uppercase tracking-widest leading-none", getSriStatusColor(item.sriEstado))}>
                 {item.sriEstado || "NO CONSULTADO"}
               </div>
-              <div className={cn("text-[8px] flex items-center justify-center gap-1 font-bold opacity-80", getSriStatusColor(item.sriEstado))}>
-                <Clock className="h-2 w-2" />
+              <div className={cn("text-[10px] flex items-center justify-center gap-1 font-bold opacity-80", getSriStatusColor(item.sriEstado))}>
+                <Clock className="h-2.5 w-2.5" />
                 {isMounted ? (item.lastSriCheck ? formatRelativeTime(item.lastSriCheck) : 'Sin fecha') : '...'}
               </div>
-              <Button size="sm" variant="outline" className="h-5 text-[8px] font-bold px-1.5 rounded-md bg-background border-border/80 hover:border-primary/50 transition-all mt-1" onClick={() => handleCheckSriStatus(item)} disabled={checkingSriId === item.id}>
-                {checkingSriId === item.id ? <RefreshCw className="h-2 w-2 animate-spin" /> : <RefreshCw className="h-2 w-2 mr-1" />}
+              <Button size="sm" variant="outline" className="h-6 text-[9px] font-bold px-2 rounded-md bg-background border-border/80 hover:border-primary/50 transition-all mt-1" onClick={() => handleCheckSriStatus(item)} disabled={checkingSriId === item.id}>
+                {checkingSriId === item.id ? <RefreshCw className="h-2.5 w-2.5 animate-spin" /> : <RefreshCw className="h-2.5 w-2.5 mr-1.5" />}
                 SINCRONIZAR
               </Button>
             </div>
@@ -421,7 +435,7 @@ export function RetentionHistoryTable() {
           <TableCell className="p-2 w-[140px] text-center"><StatusSelector retention={item} /></TableCell>
           <TableCell className="p-2 w-[120px] text-[11px] font-medium text-muted-foreground">{formatDate(item.createdAt)}</TableCell>
           <TableCell className="p-2 w-[100px] text-[11px] font-medium">{item.fechaEmision}</TableCell>
-          <TableCell className="p-2 w-[110px]"><Button size="sm" variant="ghost" className="text-[10px] h-8 px-2 font-bold border border-dashed border-primary/20 hover:border-primary/40 rounded-lg" onClick={() => handleVerifySri(item.numeroAutorizacion)}><ExternalLink className="mr-1 h-3.5 w-3.5" />WEB SRI</Button></TableCell>
+          <TableCell className="p-2 w-[110px] text-center"><Button size="sm" variant="ghost" className="text-[10px] h-8 px-2 font-bold border border-dashed border-primary/20 hover:border-primary/40 rounded-lg" onClick={() => handleVerifySri(item.numeroAutorizacion)}><ExternalLink className="mr-1 h-3.5 w-3.5" />WEB SRI</Button></TableCell>
           <TableCell className="p-2 w-[90px] text-center">
               <div className="flex items-center justify-center gap-1.5">
                   {(item.estado !== 'Solicitado' || item.emailAnularSent || item.sriAcceptanceRequested) && (
@@ -467,7 +481,7 @@ export function RetentionHistoryTable() {
         <TableCell className="p-2 text-center"><StatusBadge status={item.estado} /></TableCell>
         <TableCell className="p-2 text-[11px] font-medium text-muted-foreground">{formatDate(item.createdAt)}</TableCell>
         <TableCell className="p-2 text-[11px] font-medium">{item.fechaEmision}</TableCell>
-        <TableCell className="p-2">
+        <TableCell className="p-2 text-center">
             <Button size="sm" variant="outline" className="text-[10px] h-7 px-2 font-bold rounded-lg" onClick={() => handleVerifySri(item.numeroAutorizacion)}>
                 SRI
             </Button>
@@ -489,59 +503,70 @@ export function RetentionHistoryTable() {
 
   return (
     <TooltipProvider>
-    <Card className="w-full relative overflow-hidden border-2 shadow-xl rounded-2xl bg-card/40 backdrop-blur-sm">
-      <div className="absolute top-4 right-6 flex items-center gap-1.5 text-[10px] font-black text-primary/70 bg-primary/10 border border-primary/20 px-3 py-1.5 rounded-full shadow-sm">
-        <Timer className="h-3.5 w-3.5" />
-        SINCRO: {isMounted ? formatCountdown(secondsUntilSync) : '--:--:--'}
-      </div>
-      <CardHeader className="pb-2 pt-4 border-b">
-        <CardTitle className="text-2xl font-black tracking-tight">Seguimiento de Anulaciones</CardTitle>
-        <CardDescription className="text-sm font-semibold opacity-70">Sincroniza y gestiona comunicación con proveedores.</CardDescription>
+    <Card className="w-full relative overflow-visible border-2 shadow-xl rounded-2xl bg-card/40 backdrop-blur-sm">
+      <CardHeader className="pb-3 pt-5 border-b relative">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <CardTitle className="text-3xl font-black tracking-tight">Seguimiento de Anulaciones</CardTitle>
+            <CardDescription className="text-base font-semibold opacity-70">Sincroniza y gestiona comunicación con proveedores.</CardDescription>
+          </div>
+          <div className="flex items-center gap-3 text-xs font-black text-primary bg-primary/10 border-2 border-primary/20 px-4 py-2.5 rounded-2xl shadow-md animate-in zoom-in duration-500">
+            <Timer className="h-5 w-5" />
+            <div className="flex flex-col">
+              <span className="text-[10px] uppercase tracking-wider opacity-60">Sincronizando con SRI en:</span>
+              <span className="text-lg font-mono leading-none">{isMounted ? formatCountdown(secondsUntilSync) : '--:--:--'}</span>
+            </div>
+          </div>
+        </div>
       </CardHeader>
       <CardContent className="pt-4 px-2 sm:px-4">
         {error && <Alert variant="destructive" className="mb-4 rounded-xl border-2"><FileWarning className="h-4 w-4" /><AlertTitle className="font-bold text-xs">Error de Red</AlertTitle><AlertDescription className="text-xs">{error.message}</AlertDescription></Alert>}
         
         <div className={cn(
-          "flex items-center gap-3 mb-4 p-1.5 bg-muted/30 border border-border/50 rounded-xl transition-all",
-          selectedCount > 0 ? "translate-y-0 opacity-100" : "-translate-y-2 opacity-0 pointer-events-none h-0 p-0 mb-0"
+          "flex items-center gap-3 mb-4 p-2 bg-muted/40 border-2 border-primary/10 rounded-xl transition-all shadow-sm",
+          selectedCount > 0 ? "translate-y-0 opacity-100" : "-translate-y-2 opacity-0 pointer-events-none h-0 p-0 mb-0 overflow-hidden"
         )}>
-            <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-2">Seleccionados ({selectedCount}):</div>
-            <Button onClick={handleBulkShareForVoiding} size="sm" className="h-7 bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-sm transition-all text-[10px] px-3 font-bold"><Mail className="mr-1.5 h-3 w-3" />Email Anular</Button>
-            <Button onClick={handleBulkRequestSriAcceptance} size="sm" className="h-7 bg-violet-700 hover:bg-violet-800 text-white rounded-lg shadow-sm transition-all text-[10px] px-3 font-bold"><Send className="mr-1.5 h-3 w-3" />Aceptación SRI</Button>
-            <Button onClick={() => setSelectedRetentions({})} variant="ghost" size="sm" className="h-7 text-[9px] font-bold rounded-lg ml-auto">Limpiar Selección</Button>
+            <div className="text-[11px] font-black text-muted-foreground uppercase tracking-widest px-3 border-r-2 border-border/50">Seleccionados ({selectedCount})</div>
+            <div className="flex gap-2">
+              <Button onClick={handleBulkShareForVoiding} size="sm" className="h-8 bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-md transition-all text-[11px] px-4 font-black"><Mail className="mr-2 h-4 w-4" />Email Anular</Button>
+              <Button onClick={handleBulkRequestSriAcceptance} size="sm" className="h-8 bg-violet-700 hover:bg-violet-800 text-white rounded-xl shadow-md transition-all text-[11px] px-4 font-black"><Send className="mr-2 h-4 w-4" />Aceptación SRI</Button>
+            </div>
+            <Button onClick={() => setSelectedRetentions({})} variant="ghost" size="sm" className="h-8 text-[10px] font-black rounded-xl ml-auto hover:bg-background/80">Limpiar Selección</Button>
         </div>
 
-        <div className="border rounded-2xl mb-6 overflow-hidden shadow-sm bg-background/60">
-          <Table>
+        <div className="border rounded-2xl mb-6 overflow-visible shadow-sm bg-background/60">
+          <Table className="min-w-[1000px]">
             <TableHeader className="bg-muted/50 border-b">
               <TableRow className="hover:bg-transparent">
-                <TableHead className="w-[40px] p-2"><Checkbox checked={selectedCount > 0 && selectedCount === activeRetenciones.length} onCheckedChange={(value) => handleSelectAll(!!value)} className="rounded" /></TableHead>
-                <TableHead className="p-2 w-[110px] font-bold text-[9px] uppercase tracking-widest">Acciones</TableHead>
-                <TableHead className="p-2 w-[130px] font-bold text-[9px] uppercase tracking-widest">Retención</TableHead>
-                <TableHead className="p-2 w-[180px] font-bold text-[9px] uppercase tracking-widest">Proveedor</TableHead>
-                <TableHead className="p-2 w-[110px] font-bold text-[9px] uppercase tracking-widest">Factura</TableHead>
-                <TableHead className="text-right p-2 w-[110px] font-bold text-[9px] uppercase tracking-widest">Valor</TableHead>
-                <TableHead className="p-2 w-[190px] text-center font-bold text-[9px] uppercase tracking-widest">SRI Status</TableHead>
-                <TableHead className="p-2 w-[140px] text-center font-bold text-[9px] uppercase tracking-widest">App Status</TableHead>
-                <TableHead className="p-2 w-[120px] font-bold text-[9px] uppercase tracking-widest">Registro</TableHead>
-                <TableHead className="p-2 w-[100px] font-bold text-[9px] uppercase tracking-widest">Emisión</TableHead>
-                <TableHead className="p-2 w-[110px] font-bold text-[9px] uppercase tracking-widest text-center">Consultas</TableHead>
-                <TableHead className="text-center p-2 w-[90px] font-bold text-[9px] uppercase tracking-widest">Ops</TableHead>
-                <TableHead className="p-2 font-bold text-[9px] uppercase tracking-widest min-w-[120px]">Autorización</TableHead>
+                <TableHead className="w-[45px] p-2 text-center"><Checkbox checked={selectedCount > 0 && selectedCount === activeRetenciones.length} onCheckedChange={(value) => handleSelectAll(!!value)} className="rounded" /></TableHead>
+                <TableHead className="p-2 w-[115px] font-black text-[10px] uppercase tracking-widest">Acciones</TableHead>
+                <TableHead className="p-2 w-[130px] font-black text-[10px] uppercase tracking-widest">Retención</TableHead>
+                <TableHead className="p-2 w-[150px] font-black text-[10px] uppercase tracking-widest">Proveedor</TableHead>
+                <TableHead className="p-2 w-[115px] font-black text-[10px] uppercase tracking-widest">Factura</TableHead>
+                <TableHead className="text-right p-2 w-[115px] font-black text-[10px] uppercase tracking-widest">Valor</TableHead>
+                <TableHead className="p-2 w-[200px] text-center font-black text-[10px] uppercase tracking-widest">SRI Status</TableHead>
+                <TableHead className="p-2 w-[140px] text-center font-black text-[10px] uppercase tracking-widest">App Status</TableHead>
+                <TableHead className="p-2 w-[125px] font-black text-[10px] uppercase tracking-widest">Registro</TableHead>
+                <TableHead className="p-2 w-[105px] font-black text-[10px] uppercase tracking-widest">Emisión</TableHead>
+                <TableHead className="p-2 w-[115px] font-black text-[10px] uppercase tracking-widest text-center">Consultas</TableHead>
+                <TableHead className="text-center p-2 w-[95px] font-black text-[10px] uppercase tracking-widest">Ops</TableHead>
+                <TableHead className="p-2 font-black text-[10px] uppercase tracking-widest min-w-[125px]">Autorización</TableHead>
               </TableRow>
             </TableHeader>
-            <TableBody className="bg-background/20 backdrop-blur-sm">{loading ? Array.from({ length: 4 }).map((_, i) => <TableRow key={i}><TableCell colSpan={13}><Skeleton className="h-12 w-full my-1 rounded-xl" /></TableCell></TableRow>) : renderTableRows(activeRetenciones)}</TableBody>
+            <TableBody className="bg-background/20 backdrop-blur-sm">
+              {loading ? Array.from({ length: 4 }).map((_, i) => <TableRow key={i}><TableCell colSpan={13}><Skeleton className="h-14 w-full my-1 rounded-xl" /></TableCell></TableRow>) : renderTableRows(activeRetenciones)}
+            </TableBody>
           </Table>
         </div>
 
-        <div className="space-y-3">
+        <div className="space-y-4">
           {noRecibidoRetenciones.length > 0 && (
             <Accordion type="single" collapsible className="w-full">
               <AccordionItem value="no-recibidas" className="border rounded-2xl px-4 bg-rose-500/[0.02] border-rose-500/10 hover:border-rose-500/20 transition-all">
                 <AccordionTrigger className="hover:no-underline py-4">
                   <div className="flex items-center gap-2">
                     <FileX className="h-5 w-5 text-rose-600" />
-                    <span className="font-bold text-sm text-rose-950 uppercase tracking-tight">No Recibidas ({noRecibidoRetenciones.length})</span>
+                    <span className="font-black text-sm text-rose-950 uppercase tracking-tight">No Recibidas ({noRecibidoRetenciones.length})</span>
                   </div>
                 </AccordionTrigger>
                 <AccordionContent className="pb-4">
@@ -563,7 +588,7 @@ export function RetentionHistoryTable() {
                 <AccordionTrigger className="hover:no-underline py-4">
                   <div className="flex items-center gap-2">
                     <Archive className="h-5 w-5 text-emerald-600" />
-                    <span className="font-bold text-sm text-emerald-950 uppercase tracking-tight">Archivadas ({anulatedRetenciones.length})</span>
+                    <span className="font-black text-sm text-emerald-950 uppercase tracking-tight">Archivadas ({anulatedRetenciones.length})</span>
                   </div>
                 </AccordionTrigger>
                 <AccordionContent className="pb-4">
