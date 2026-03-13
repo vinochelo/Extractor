@@ -14,7 +14,7 @@ import { es } from "date-fns/locale";
 export function SriManualChecker() {
   const [clave, setClave] = useState("");
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<SriResponse | null>(null);
+  const [result, setResult] = useState<any | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -67,13 +67,52 @@ export function SriManualChecker() {
     }
   };
 
-  // Extraer información técnica buscando en múltiples niveles de la respuesta
-  const extraInfo = result?.debug_sri_response?.EstadoAutorizacionComprobante;
+  // Función de ayuda para buscar valores en objetos anidados de forma flexible
+  const findValue = (obj: any, keys: string[]) => {
+    if (!obj) return null;
+    
+    // Intentar en el nivel superior primero
+    for (const key of keys) {
+      if (obj[key]) return obj[key];
+    }
+
+    // Intentar dentro de debug_sri_response
+    const debug = obj.debug_sri_response;
+    if (debug) {
+      // Caso 1: Estructura directa o anidada en EstadoAutorizacionComprobante
+      const inner = debug.EstadoAutorizacionComprobante || debug.estadoAutorizacionComprobante;
+      if (inner) {
+        for (const key of keys) {
+          if (inner[key]) return inner[key];
+        }
+      }
+
+      // Caso 2: Estructura de array (autorizaciones.autorizacion)
+      const authList = debug.autorizaciones?.autorizacion;
+      if (Array.isArray(authList) && authList.length > 0) {
+        for (const key of keys) {
+          if (authList[0][key]) return authList[0][key];
+        }
+      } else if (authList) {
+        for (const key of keys) {
+          if (authList[key]) return authList[key];
+        }
+      }
+    }
+    
+    return null;
+  };
+
+  const tipoComprobante = findValue(result, ["tipoComprobante", "tipo_comprobante"]) || "No especificado";
   
-  const tipoComprobante = extraInfo?.tipoComprobante || "No especificado";
-  const rucEmisor = extraInfo?.rucEmisor || "No especificado";
-  const fechaAutorizacion = result?.fechaAutorizacion || extraInfo?.fechaAutorizacion;
-  const claveAccesoVerificada = result?.claveAcceso || extraInfo?.claveAcceso || result?.debug_sri_response?.EstadoAutorizacionComprobante?.claveAcceso;
+  // Extraer RUC: Intentar API, si no, extraer de la Clave de Acceso (dígitos 11 al 23)
+  const rucEmisor = findValue(result, ["rucEmisor", "ruc_emisor"]) || (clave.length === 49 ? clave.substring(10, 23) : "No especificado");
+  
+  const fechaAutorizacion = findValue(result, ["fechaAutorizacion", "fecha_autorizacion", "fechaAutorizacionComprobante"]);
+  
+  const claveAccesoVerificada = findValue(result, ["claveAcceso", "clave_acceso"]) || result?.claveAcceso || clave;
+
+  const mensajes = findValue(result, ["mensajes", "mensaje", "informacionAdicional"]);
 
   return (
     <Card className="w-full max-w-3xl mx-auto mt-8 border-2 shadow-xl rounded-2xl overflow-hidden">
@@ -82,7 +121,7 @@ export function SriManualChecker() {
             <div className="p-2 bg-primary/10 rounded-lg">
                 <ShieldCheck className="h-6 w-6 text-primary" />
             </div>
-            <CardTitle className="text-2xl">Consulta Individual SRI</CardTitle>
+            <CardTitle className="text-2xl">Consulta Autorizaciones</CardTitle>
         </div>
         <CardDescription className="text-base">
           Verifica la validez y el estado actual de cualquier comprobante electrónico ingresando su número de autorización.
@@ -143,17 +182,17 @@ export function SriManualChecker() {
                 <span>Estado: {result.estado || "No disponible"}</span>
               </div>
               
-              {(result.mensaje || extraInfo?.mensajes) && (
+              {(result.mensaje || mensajes) && (
                 <div className="text-sm font-medium flex gap-3 p-4 bg-background/50 rounded-xl border border-current/20">
                   <MessageSquare className="h-5 w-5 shrink-0 mt-0.5" />
                   <div>
                     <span className="font-bold opacity-70 block mb-1">Información Detallada:</span>
                     <p>{result.mensaje || "Revisa los detalles técnicos del SRI a continuación."}</p>
-                    {extraInfo?.mensajes && (
+                    {mensajes && (
                        <div className="mt-2 text-xs font-mono opacity-80 bg-black/5 p-2 rounded">
-                          {typeof extraInfo.mensajes === 'string' 
-                            ? extraInfo.mensajes 
-                            : JSON.stringify(extraInfo.mensajes, null, 2)}
+                          {typeof mensajes === 'string' 
+                            ? mensajes 
+                            : JSON.stringify(mensajes, null, 2)}
                        </div>
                     )}
                   </div>
@@ -191,7 +230,7 @@ export function SriManualChecker() {
                 <Fingerprint className="h-5 w-5 text-primary shrink-0 mt-0.5" />
                 <div className="overflow-hidden w-full">
                   <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Clave de Acceso Verificada</p>
-                  <p className="font-mono text-[11px] break-all text-primary/80">{claveAccesoVerificada || "No disponible"}</p>
+                  <p className="font-mono text-[11px] break-all text-primary/80">{claveAccesoVerificada}</p>
                 </div>
               </div>
             </div>
