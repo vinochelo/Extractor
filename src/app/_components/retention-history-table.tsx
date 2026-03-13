@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect, useRef } from 'react';
 import { useUser, useCollection, useMemoFirebase, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
 import { collection, query, orderBy, doc } from 'firebase/firestore';
 import { useFirestore } from '@/firebase/provider';
@@ -42,7 +42,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { ExternalLink, FileWarning, Archive, RotateCcw, Trash2, Mail, Send, Copy, CheckCircle2, RefreshCw, Clock, Timer, FileX } from 'lucide-react';
-import { format, formatDistanceToNow } from 'date-fns';
+import { format, formatDistanceToNow, addHours, startOfHour } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { RetentionRecord, RetentionStatus } from '@/lib/types';
 import { StatusSelector } from './status-selector';
@@ -87,6 +87,7 @@ export function RetentionHistoryTable() {
   const [checkingSriId, setCheckingSriId] = useState<string | null>(null);
   const [secondsUntilSync, setSecondsUntilSync] = useState(0);
   const [isMounted, setIsMounted] = useState(false);
+  const lastSyncHourRef = useRef<number | null>(null);
 
   useEffect(() => {
     setIsMounted(true);
@@ -113,6 +114,7 @@ export function RetentionHistoryTable() {
     return { activeRetenciones: active, anulatedRetenciones: anulated, noRecibidoRetenciones: noRecibido };
   }, [retenciones]);
 
+  // Lógica del Cronómetro "En Punto"
   useEffect(() => {
     if (!isMounted) return;
     
@@ -122,36 +124,45 @@ export function RetentionHistoryTable() {
           return;
       }
       
-      const ONE_HOUR_MS = 60 * 60 * 1000;
       const now = new Date();
+      // Calculamos la próxima hora en punto
+      const nextHour = startOfHour(addHours(now, 1));
+      const diffSeconds = Math.floor((nextHour.getTime() - now.getTime()) / 1000);
       
-      let oldestCheckDate = now;
-      let foundCheck = false;
+      setSecondsUntilSync(diffSeconds);
 
-      activeRetenciones.forEach(r => {
-          if (!r.lastSriCheck) {
-              oldestCheckDate = new Date(0); 
-              foundCheck = true;
-          } else {
-              const d = (r.lastSriCheck as any).toDate ? (r.lastSriCheck as any).toDate() : new Date(r.lastSriCheck as any);
-              if (!foundCheck || d < oldestCheckDate) {
-                  oldestCheckDate = d;
-                  foundCheck = true;
-              }
-          }
-      });
-
-      if (!foundCheck) {
-          setSecondsUntilSync(0);
-          return;
+      // Si llegamos al segundo 0 o acabamos de pasar al nuevo bloque de hora
+      const currentHour = now.getHours();
+      if (lastSyncHourRef.current !== null && lastSyncHourRef.current !== currentHour) {
+          // Ha cambiado la hora (estamos en el minuto 0)
+          triggerBatchSync();
       }
-
-      const elapsedMs = now.getTime() - oldestCheckDate.getTime();
-      const remainingMs = Math.max(0, ONE_HOUR_MS - elapsedMs);
-      setSecondsUntilSync(Math.floor(remainingMs / 1000));
+      lastSyncHourRef.current = currentHour;
     }, 1000);
+
     return () => clearInterval(interval);
   }, [activeRetenciones, isMounted]);
+
+  const triggerBatchSync = async () => {
+    if (!activeRetenciones || activeRetenciones.length === 0 || !user?.uid || !firestore) return;
+
+    // Seleccionamos las 5 que llevan más tiempo sin revisarse
+    const itemsToSync = [...activeRetenciones]
+      .sort((a, b) => {
+        const dateA = (a.lastSriCheck as any)?.toDate?.() || new Date(a.lastSriCheck as any || 0);
+        const dateB = (b.lastSriCheck as any)?.toDate?.() || new Date(b.lastSriCheck as any || 0);
+        return dateA.getTime() - dateB.getTime();
+      })
+      .slice(0, 5);
+
+    if (itemsToSync.length > 0) {
+      toast({ 
+        title: 'Sincronización Automática', 
+        description: `Actualizando estado de ${itemsToSync.length} retenciones...` 
+      });
+      await Promise.all(itemsToSync.map(item => handleCheckSriStatus(item, true)));
+    }
+  };
 
   const formatCountdown = (seconds: number) => {
     if (seconds === 0 && (!activeRetenciones || activeRetenciones.length === 0)) return "00:00:00";
@@ -160,36 +171,6 @@ export function RetentionHistoryTable() {
     const s = seconds % 60;
     return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   };
-
-  useEffect(() => {
-    if (!isMounted || !activeRetenciones || activeRetenciones.length === 0 || !user?.uid || !firestore) return;
-    
-    const ONE_HOUR_MS = 60 * 60 * 1000;
-    const now = new Date();
-    
-    const staleRetentions = activeRetenciones.filter(r => {
-      if (!r.lastSriCheck) return true;
-      const lastCheck = (r.lastSriCheck as any).toDate ? (r.lastSriCheck as any).toDate() : new Date(r.lastSriCheck as any);
-      return now.getTime() - lastCheck.getTime() >= ONE_HOUR_MS;
-    });
-
-    if (staleRetentions.length > 0) {
-      const batchToUpdate = staleRetentions
-        .sort((a, b) => {
-          const dateA = (a.lastSriCheck as any)?.toDate?.() || new Date(a.lastSriCheck as any || 0);
-          const dateB = (b.lastSriCheck as any)?.toDate?.() || new Date(b.lastSriCheck as any || 0);
-          return dateA.getTime() - dateB.getTime();
-        })
-        .slice(0, 5);
-
-      const processSyncBatch = async () => {
-        await Promise.all(batchToUpdate.map(item => handleCheckSriStatus(item, true)));
-      };
-
-      const timer = setTimeout(processSyncBatch, 3000);
-      return () => clearTimeout(timer);
-    }
-  }, [activeRetenciones, user?.uid, firestore, isMounted]);
 
   const selectedCount = Object.keys(selectedRetentions).length;
 
@@ -434,7 +415,7 @@ export function RetentionHistoryTable() {
                 <TooltipTrigger asChild>
                   <Button size="sm" variant="outline" className="h-6 text-[10px] font-bold px-2 rounded-md bg-background border-border/80 hover:border-primary/50 transition-all mt-1" onClick={() => handleCheckSriStatus(item)} disabled={checkingSriId === item.id}>
                     {checkingSriId === item.id ? <RefreshCw className="h-2.5 w-2.5 animate-spin" /> : <RefreshCw className="h-2.5 w-2.5 mr-1.5" />}
-                    SINCRONIZAR
+                    REVISAR AUTORIZACIÓN EN EL SRI
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent side="top"><p>Revisar autorización en el SRI</p></TooltipContent>
@@ -520,10 +501,10 @@ export function RetentionHistoryTable() {
             <CardDescription className="text-base font-semibold opacity-70">Sincroniza y gestiona comunicación con proveedores.</CardDescription>
           </div>
           <div className="flex items-center gap-6 text-xs font-black text-primary bg-primary/10 border-2 border-primary/20 px-8 py-5 rounded-[1.5rem] shadow-md animate-in zoom-in duration-500">
-            <Timer className="h-9 w-9" />
+            <Timer className="h-10 w-10" />
             <div className="flex flex-col">
-              <span className="text-[11px] uppercase tracking-widest opacity-60">Sincronizando con SRI en:</span>
-              <span className="text-3xl font-mono leading-none mt-1.5">{isMounted ? formatCountdown(secondsUntilSync) : '00:00:00'}</span>
+              <span className="text-[12px] uppercase tracking-widest opacity-60">SINCRONIZANDO CON SRI:</span>
+              <span className="text-4xl font-mono leading-none mt-1.5">{isMounted ? formatCountdown(secondsUntilSync) : '00:00:00'}</span>
             </div>
           </div>
         </div>
