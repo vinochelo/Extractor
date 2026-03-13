@@ -30,7 +30,13 @@ export function MainPage() {
   const [extractedData, setExtractedData] = useState<RetentionRecord | null>(
     null
   );
-  const [historyKey, setHistoryKey] = useState(Date.now());
+  // Inicializamos con un valor estable para evitar errores de hidratación
+  const [historyKey, setHistoryKey] = useState(0);
+
+  useEffect(() => {
+    // Actualizamos la clave solo en el cliente tras el montaje
+    setHistoryKey(Date.now());
+  }, []);
 
   useEffect(() => {
     if (!user && !isUserLoading && auth) {

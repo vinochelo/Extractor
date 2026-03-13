@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useMemo, useState, useEffect } from 'react';
@@ -86,6 +85,11 @@ export function RetentionHistoryTable() {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [checkingSriId, setCheckingSriId] = useState<string | null>(null);
   const [secondsUntilSync, setSecondsUntilSync] = useState(3600);
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   const retencionesQuery = useMemoFirebase(() => {
     if (!firestore || !user?.uid) return null;
@@ -409,7 +413,7 @@ export function RetentionHistoryTable() {
               </div>
               <div className={cn("text-[10px] flex items-center justify-center gap-1 font-medium", getSriStatusColor(item.sriEstado))}>
                 <Clock className="h-2.5 w-2.5" />
-                {item.lastSriCheck ? formatRelativeTime(item.lastSriCheck) : 'Nunca verificado'}
+                {!isMounted ? '...' : (item.lastSriCheck ? formatRelativeTime(item.lastSriCheck) : 'Nunca verificado')}
               </div>
               <Button size="sm" variant="outline" className="h-6 text-[9px] px-2 mt-1 w-fit" onClick={() => handleCheckSriStatus(item)} disabled={checkingSriId === item.id}>
                 {checkingSriId === item.id ? <RefreshCw className="h-2.5 w-2.5 animate-spin" /> : <RefreshCw className="h-2.5 w-2.5 mr-1" />}
@@ -491,7 +495,7 @@ export function RetentionHistoryTable() {
     <Card className="w-full relative overflow-hidden">
       <div className="absolute top-4 right-6 flex items-center gap-2 text-[11px] font-mono text-muted-foreground bg-muted/30 px-2 py-1 rounded-full">
         <Timer className="h-3 w-3" />
-        Sincro SRI en: {formatCountdown(secondsUntilSync)}
+        Sincro SRI en: {isMounted ? formatCountdown(secondsUntilSync) : '--:--:--'}
       </div>
       <CardHeader className="pb-4">
         <CardTitle>Seguimiento de Anulaciones</CardTitle>
