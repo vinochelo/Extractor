@@ -31,9 +31,11 @@ export function MainPage() {
   const [extractedData, setExtractedData] = useState<RetentionRecord | null>(
     null
   );
-  const [historyKey, setHistoryKey] = useState(0);
+  const [historyKey, setHistoryKey] = useState<number | null>(null);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
     setHistoryKey(Date.now());
   }, []);
 
@@ -169,7 +171,7 @@ export function MainPage() {
           </div>
 
           <TabsContent value="historial" className="space-y-8 animate-in fade-in zoom-in-95 duration-500">
-            <RetentionHistoryTable key={historyKey} />
+            {mounted && historyKey !== null && <RetentionHistoryTable key={historyKey} />}
 
             <section className="space-y-4 max-w-4xl mx-auto">
               <div className="text-center space-y-1">
@@ -205,7 +207,9 @@ export function MainPage() {
         </Tabs>
         
         <footer className="mt-12 pt-6 border-t border-border/30 text-center">
-            <p className="text-[10px] font-bold text-muted-foreground/50 uppercase tracking-[0.3em]">Status Retenciones &copy; {new Date().getFullYear()} • Gestión SRI Eficiente</p>
+            <p className="text-[10px] font-bold text-muted-foreground/50 uppercase tracking-[0.3em]">
+              Status Retenciones &copy; {mounted ? new Date().getFullYear() : '2025'} • Gestión SRI Eficiente
+            </p>
         </footer>
       </div>
     </main>

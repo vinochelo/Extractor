@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,6 +16,11 @@ export function SriManualChecker() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value.replace(/\D/g, "").slice(0, 49);
@@ -61,6 +66,7 @@ export function SriManualChecker() {
 
   const formatSriDate = (dateString?: string) => {
     if (!dateString) return "No disponible";
+    if (!mounted) return "...";
     try {
       return format(new Date(dateString), "d 'de' MMMM 'de' yyyy, HH:mm:ss", { locale: es });
     } catch {
@@ -70,7 +76,6 @@ export function SriManualChecker() {
 
   const isFueraDeRango = (result?.estado || "").toUpperCase() === "FUERA DE RANGO";
 
-  // Extraer información directamente de la respuesta de la API según la estructura confirmada
   const infoSRI = result?.debug_sri_response?.EstadoAutorizacionComprobante || {};
   
   const tipoComprobante = infoSRI.tipoComprobante || result?.tipoComprobante || "No disponible";
@@ -137,7 +142,6 @@ export function SriManualChecker() {
 
         {result && (
           <div className="space-y-6 animate-in fade-in zoom-in duration-500">
-            {/* Estado Principal */}
             <div className={cn(
               "p-8 rounded-2xl border-2 flex flex-col gap-4 shadow-sm", 
               getStatusStyles(result.estado)
@@ -165,7 +169,6 @@ export function SriManualChecker() {
               )}
             </div>
 
-            {/* Detalles Técnicos */}
             {!isFueraDeRango && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="p-5 bg-muted/20 rounded-2xl border border-border/50 flex items-start gap-4 hover:bg-muted/30 transition-colors">
