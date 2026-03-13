@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -17,6 +18,7 @@ import type { RetentionRecord } from '@/lib/types';
 import { EmailImporter } from './email-importer';
 import { SriManualChecker } from './sri-manual-checker';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { consultarFacturaSRI } from '@/lib/sri-service';
 
 export function MainPage() {
   const { user, isUserLoading } = useUser();
@@ -72,12 +74,23 @@ export function MainPage() {
       });
 
       if (result.success) {
+        // Consultar SRI inmediatamente al cargar
+        let sriResult = null;
+        try {
+          sriResult = await consultarFacturaSRI(result.data.numeroAutorizacion);
+        } catch (sriErr) {
+          console.warn("No se pudo consultar el SRI durante la carga inicial.");
+        }
+
         const retentionRecordData = {
           ...result.data,
           fileName: fileToProcess.name,
           createdAt: new Date(),
           userId: user.uid,
           estado: 'Solicitado' as const,
+          sriEstado: sriResult?.estado || null,
+          sriMensaje: sriResult?.mensaje || null,
+          lastSriCheck: new Date(),
         };
 
         const retencionesCollection = collection(
@@ -92,7 +105,7 @@ export function MainPage() {
         );
         const querySnapshot = await getDocs(q);
 
-        setExtractedData({ ...retentionRecordData, id: 'temp-preview' });
+        setExtractedData({ ...retentionRecordData, id: 'temp-preview' } as any);
         setFile(null);
 
         if (!querySnapshot.empty) {
@@ -106,7 +119,7 @@ export function MainPage() {
           );
           setHistoryKey(Date.now());
           if (docRef) {
-            setExtractedData({ ...retentionRecordData, id: docRef.id });
+            setExtractedData({ ...retentionRecordData, id: docRef.id } as any);
           }
         }
       } else {

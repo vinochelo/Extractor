@@ -1,6 +1,7 @@
+
 "use client";
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useUser, useCollection, useMemoFirebase, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
 import { collection, query, orderBy, doc } from 'firebase/firestore';
 import { useFirestore } from '@/firebase/provider';
@@ -104,6 +105,38 @@ export function RetentionHistoryTable() {
     const noRecibido = retenciones?.filter(r => r.estado === 'No Recibido') || [];
     return { activeRetenciones: active, anulatedRetenciones: anulated, noRecibidoRetenciones: noRecibido };
   }, [retenciones]);
+
+  // Lógica de actualización automática cada 3 horas para registros activos
+  useEffect(() => {
+    if (!activeRetenciones || activeRetenciones.length === 0 || !user?.uid || !firestore) return;
+
+    // 3 horas en milisegundos
+    const THREE_HOURS_MS = 3 * 60 * 60 * 1000;
+    const now = new Date();
+
+    const staleRetentions = activeRetenciones.filter(r => {
+      if (!r.lastSriCheck) return true;
+      
+      const lastCheck = (r.lastSriCheck as any).toDate 
+        ? (r.lastSriCheck as any).toDate() 
+        : new Date(r.lastSriCheck as any);
+        
+      return now.getTime() - lastCheck.getTime() > THREE_HOURS_MS;
+    });
+
+    if (staleRetentions.length > 0) {
+      const processNextStale = async () => {
+        // Tomar el primero que necesite actualización
+        const itemToUpdate = staleRetentions[0];
+        console.log(`Auto-actualizando SRI para: ${itemToUpdate.numeroRetencion}`);
+        await handleCheckSriStatus(itemToUpdate, true);
+      };
+
+      // Esperar 5 segundos antes de procesar el primer stale para no saturar al iniciar la app
+      const timer = setTimeout(processNextStale, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [activeRetenciones, user?.uid, firestore]);
 
   const selectedCount = Object.keys(selectedRetentions).length;
 
@@ -245,10 +278,10 @@ Agradecemos su pronta gestión.
     window.location.href = `mailto:${providerEmails}?subject=${subject}&body=${body}`;
   };
 
-  const handleCheckSriStatus = async (item: RetentionRecord) => {
+  const handleCheckSriStatus = async (item: RetentionRecord, silent = false) => {
     if (!firestore || !user?.uid) return;
     
-    setCheckingSriId(item.id);
+    if (!silent) setCheckingSriId(item.id);
     try {
       const sriData = await consultarFacturaSRI(item.numeroAutorizacion);
       const retentionRef = doc(firestore, `users/${user.uid}/retenciones`, item.id);
@@ -259,18 +292,22 @@ Agradecemos su pronta gestión.
         lastSriCheck: new Date()
       });
 
-      toast({
-        title: 'SRI Actualizado',
-        description: `Estado SRI para ${item.numeroRetencion}: ${sriData.estado}`,
-      });
+      if (!silent) {
+        toast({
+          title: 'SRI Actualizado',
+          description: `Estado SRI para ${item.numeroRetencion}: ${sriData.estado}`,
+        });
+      }
     } catch (err: any) {
-      toast({
-        variant: 'destructive',
-        title: 'Error SRI',
-        description: 'No se pudo consultar el estado del SRI en este momento.',
-      });
+      if (!silent) {
+        toast({
+          variant: 'destructive',
+          title: 'Error SRI',
+          description: 'No se pudo consultar el estado del SRI en este momento.',
+        });
+      }
     } finally {
-      setCheckingSriId(null);
+      if (!silent) setCheckingSriId(null);
     }
   };
 
@@ -331,7 +368,7 @@ Agradecemos su pronta gestión.
     if (!estado) return "text-muted-foreground";
     const status = estado.toUpperCase();
     if (status === "AUTORIZADO") return "text-green-600 font-bold";
-    if (status === "POR PROCESAR") return "text-yellow-600 font-bold";
+    if (status === "POR PROCESAR" || status === "RECIBIDO") return "text-yellow-600 font-bold";
     if (status === "NO AUTORIZADO" || status === "RECHAZADO" || status === "FUERA DE RANGO") return "text-destructive font-bold";
     return "text-foreground font-semibold";
   };
