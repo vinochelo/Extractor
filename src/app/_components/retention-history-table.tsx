@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useMemo, useState, useEffect } from 'react';
@@ -368,9 +367,9 @@ export function RetentionHistoryTable() {
                         size="icon" 
                         onClick={() => handleShareForVoiding(item)} 
                         disabled={selectedCount > 0}
-                        className={cn("h-9 w-9", item.emailAnularSent && "opacity-40 grayscale")}
+                        className={cn("h-10 w-10", item.emailAnularSent && "opacity-40 grayscale")}
                       >
-                        <Mail className={cn("h-5 w-5", !item.emailAnularSent ? "text-blue-600" : "text-muted-foreground")} />
+                        <Mail className={cn("h-6 w-6", !item.emailAnularSent ? "text-blue-600" : "text-muted-foreground")} />
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent><p>Email para Anular</p></TooltipContent>
@@ -382,14 +381,14 @@ export function RetentionHistoryTable() {
                         size="icon" 
                         onClick={() => handleRequestSriAcceptance(item)} 
                         disabled={selectedCount > 0}
-                        className={cn("h-9 w-9", item.sriAcceptanceRequested && "opacity-40 grayscale")}
+                        className={cn("h-10 w-10", item.sriAcceptanceRequested && "opacity-40 grayscale")}
                       >
-                        <Send className={cn("h-5 w-5", !item.sriAcceptanceRequested ? "text-indigo-600" : "text-muted-foreground")} />
+                        <Send className={cn("h-6 w-6", !item.sriAcceptanceRequested ? "text-violet-700" : "text-muted-foreground")} />
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent><p>Solicitar Aceptación SRI</p></TooltipContent>
                   </Tooltip>
-                  <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => handleCopy(item)}><Check className={cn("h-4 w-4", copiedId === item.id ? "text-green-500" : "opacity-0")} /><Copy className={cn("h-4 w-4 absolute", copiedId === item.id && "opacity-0")} /></Button></TooltipTrigger><TooltipContent><p>Copiar Datos</p></TooltipContent></Tooltip>
+                  <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-10 w-10" onClick={() => handleCopy(item)}><Check className={cn("h-4 w-4", copiedId === item.id ? "text-green-500" : "opacity-0")} /><Copy className={cn("h-4 w-4 absolute", copiedId === item.id && "opacity-0")} /></Button></TooltipTrigger><TooltipContent><p>Copiar Datos</p></TooltipContent></Tooltip>
               </div>
           </TableCell>
           <TableCell className="font-mono p-2">{item.numeroRetencion}</TableCell>
