@@ -1,3 +1,4 @@
+
 {
   "entities": {
     "Retencion": {
@@ -72,6 +73,14 @@
           "type": "string",
           "description": "Última fecha de consulta al SRI.",
           "format": "date-time"
+        },
+        "emailAnularSent": {
+          "type": "boolean",
+          "description": "Indica si se ha enviado el correo para anular."
+        },
+        "sriAcceptanceRequested": {
+          "type": "boolean",
+          "description": "Indica si se ha solicitado la aceptación de anulación en el SRI."
         }
       },
       "required": [

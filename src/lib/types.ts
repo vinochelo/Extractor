@@ -1,3 +1,4 @@
+
 import type { Timestamp } from "firebase/firestore";
 
 export type RetentionStatus = "Solicitado" | "Pendiente Anular" | "Anulado" | "No Recibido";
@@ -22,4 +23,6 @@ export type RetentionRecord = RetentionData & {
   sriEstado?: string;
   sriMensaje?: string;
   lastSriCheck?: Timestamp | Date;
+  emailAnularSent?: boolean;
+  sriAcceptanceRequested?: boolean;
 };

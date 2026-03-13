@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useMemo, useState, useEffect } from 'react';
@@ -194,10 +195,20 @@ export function RetentionHistoryTable() {
     }
   };
 
-  const updateStatusIfNeeded = (retention: RetentionRecord) => {
-    if (retention.estado === 'Solicitado' && firestore && user?.uid) {
-      const retentionRef = doc(firestore, `users/${user.uid}/retenciones`, retention.id);
-      updateDocumentNonBlocking(retentionRef, { estado: 'Pendiente Anular' });
+  const updateStatusAndMarkAction = (retention: RetentionRecord, action: 'email' | 'acceptance') => {
+    if (!firestore || !user?.uid) return;
+    const retentionRef = doc(firestore, `users/${user.uid}/retenciones`, retention.id);
+    const updateData: any = {};
+    
+    if (retention.estado === 'Solicitado') {
+      updateData.estado = 'Pendiente Anular';
+    }
+    
+    if (action === 'email') updateData.emailAnularSent = true;
+    if (action === 'acceptance') updateData.sriAcceptanceRequested = true;
+
+    if (Object.keys(updateData).length > 0) {
+      updateDocumentNonBlocking(retentionRef, updateData);
     }
   };
 
@@ -225,7 +236,7 @@ export function RetentionHistoryTable() {
 
   const handleBulkShareForVoiding = () => {
     const selectedItems = Object.values(selectedRetentions);
-    selectedItems.forEach(item => updateStatusIfNeeded(item));
+    selectedItems.forEach(item => updateStatusAndMarkAction(item, 'email'));
     const emailBody = selectedItems.map(item => `Detalles de la retención a anular:\n--------------------------------\n${generateFormattedText(item)}\n--------------------------------`).join('\n\n');
     const subject = "Anulación de Múltiples Retenciones";
     const body = encodeURIComponent(`Buenos días,\n\nFavor su ayuda anulando las retenciones adjuntas.\n\n${emailBody}`);
@@ -234,7 +245,7 @@ export function RetentionHistoryTable() {
 
   const handleBulkRequestSriAcceptance = () => {
     const selectedItems = Object.values(selectedRetentions);
-    selectedItems.forEach(item => updateStatusIfNeeded(item));
+    selectedItems.forEach(item => updateStatusAndMarkAction(item, 'acceptance'));
     const groupedByProvider = selectedItems.reduce((acc, item) => {
         const key = item.rucProveedor || 'unknown';
         if (!acc[key]) acc[key] = { providerName: item.razonSocialProveedor, ruc: item.rucProveedor, items: [] };
@@ -257,7 +268,7 @@ export function RetentionHistoryTable() {
   };
 
   const handleShareForVoiding = (data: RetentionRecord) => {
-    updateStatusIfNeeded(data);
+    updateStatusAndMarkAction(data, 'email');
     const formattedTextForEmail = generateFormattedText(data);
     const subject = "Anulación de Retención";
     const emailBody = `Buenos días,\n\nFavor su ayuda anulando la retención adjunta.\n\nDetalles de la retención a anular:\n--------------------------------\n${formattedTextForEmail}\n--------------------------------\n`;
@@ -265,7 +276,7 @@ export function RetentionHistoryTable() {
   };
 
   const handleRequestSriAcceptance = (data: RetentionRecord) => {
-    updateStatusIfNeeded(data);
+    updateStatusAndMarkAction(data, 'acceptance');
     const providerEmails = getAllEmailsForProvider(data.rucProveedor, data.emailProveedor);
     const formattedTextForEmail = generateFormattedText(data);
     const subject = `Anulación retención ${data.numeroRetencion}`;
@@ -296,7 +307,11 @@ export function RetentionHistoryTable() {
     
     if (previousStatus) {
         const retentionRef = doc(firestore, `users/${user.uid}/retenciones`, retention.id);
-        updateDocumentNonBlocking(retentionRef, { estado: previousStatus });
+        updateDocumentNonBlocking(retentionRef, { 
+          estado: previousStatus,
+          emailAnularSent: false,
+          sriAcceptanceRequested: false
+        });
         toast({ title: 'Estado Revertido', description: `La retención ha vuelto al estado: ${previousStatus}.` });
     }
   };
@@ -341,12 +356,11 @@ export function RetentionHistoryTable() {
   const renderTableRows = (items: RetentionRecord[]) => {
     if (items.length === 0) return <TableRow><TableCell colSpan={13} className="h-24 text-center">No hay retenciones activas.</TableCell></TableRow>;
     return items.map((item: RetentionRecord) => {
-      const isUsed = item.estado !== 'Solicitado';
       return (
         <TableRow key={item.id} data-state={selectedRetentions[item.id] ? 'selected' : ''}>
           <TableCell className="p-2"><Checkbox checked={!!selectedRetentions[item.id]} onCheckedChange={(value) => handleSelectRetention(item, !!value)} /></TableCell>
           <TableCell className="p-2">
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-2">
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button 
@@ -354,9 +368,9 @@ export function RetentionHistoryTable() {
                         size="icon" 
                         onClick={() => handleShareForVoiding(item)} 
                         disabled={selectedCount > 0}
-                        className={cn(isUsed && "opacity-60")}
+                        className={cn("h-9 w-9", item.emailAnularSent && "opacity-40 grayscale")}
                       >
-                        <Mail className={cn("h-4 w-4", isUsed && "text-muted-foreground")} />
+                        <Mail className={cn("h-5 w-5", !item.emailAnularSent ? "text-blue-600" : "text-muted-foreground")} />
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent><p>Email para Anular</p></TooltipContent>
@@ -368,14 +382,14 @@ export function RetentionHistoryTable() {
                         size="icon" 
                         onClick={() => handleRequestSriAcceptance(item)} 
                         disabled={selectedCount > 0}
-                        className={cn(isUsed && "opacity-60")}
+                        className={cn("h-9 w-9", item.sriAcceptanceRequested && "opacity-40 grayscale")}
                       >
-                        <Send className={cn("h-4 w-4", isUsed && "text-muted-foreground")} />
+                        <Send className={cn("h-5 w-5", !item.sriAcceptanceRequested ? "text-indigo-600" : "text-muted-foreground")} />
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent><p>Solicitar Aceptación SRI</p></TooltipContent>
                   </Tooltip>
-                  <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" onClick={() => handleCopy(item)}><Check className={cn("h-4 w-4", copiedId === item.id ? "text-green-500" : "opacity-0")} /><Copy className={cn("h-4 w-4 absolute", copiedId === item.id && "opacity-0")} /></Button></TooltipTrigger><TooltipContent><p>Copiar Datos</p></TooltipContent></Tooltip>
+                  <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => handleCopy(item)}><Check className={cn("h-4 w-4", copiedId === item.id ? "text-green-500" : "opacity-0")} /><Copy className={cn("h-4 w-4 absolute", copiedId === item.id && "opacity-0")} /></Button></TooltipTrigger><TooltipContent><p>Copiar Datos</p></TooltipContent></Tooltip>
               </div>
           </TableCell>
           <TableCell className="font-mono p-2">{item.numeroRetencion}</TableCell>
@@ -403,7 +417,7 @@ export function RetentionHistoryTable() {
           <TableCell className="p-2 w-[120px]"><Button size="sm" variant="outline" className="text-xs h-7" onClick={() => handleVerifySri(item.numeroAutorizacion)}><ExternalLink className="mr-1 h-3 w-3" />VERIFICAR</Button></TableCell>
           <TableCell className="p-2 w-[80px] text-center">
               <div className="flex items-center justify-center gap-1">
-                  {item.estado !== 'Solicitado' && (
+                  {(item.estado !== 'Solicitado' || item.emailAnularSent || item.sriAcceptanceRequested) && (
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => handleRevertStatus(item)}>
