@@ -84,7 +84,7 @@ export function RetentionHistoryTable() {
   const [selectedRetentions, setSelectedRetentions] = useState<Record<string, RetentionRecord>>({});
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [checkingSriId, setCheckingSriId] = useState<string | null>(null);
-  const [secondsUntilSync, setSecondsUntilSync] = useState(3600); // 1 hora por defecto
+  const [secondsUntilSync, setSecondsUntilSync] = useState(3600);
 
   const retencionesQuery = useMemoFirebase(() => {
     if (!firestore || !user?.uid) return null;
@@ -107,7 +107,6 @@ export function RetentionHistoryTable() {
     return { activeRetenciones: active, anulatedRetenciones: anulated, noRecibidoRetenciones: noRecibido };
   }, [retenciones]);
 
-  // Temporizador dinámico basado en la retención más antigua (1 hora de frecuencia)
   useEffect(() => {
     const interval = setInterval(() => {
       if (!activeRetenciones || activeRetenciones.length === 0) {
@@ -118,11 +117,10 @@ export function RetentionHistoryTable() {
       const ONE_HOUR_MS = 60 * 60 * 1000;
       const now = new Date();
       
-      // Encontrar la verificación más antigua
       let oldestCheckDate = now;
       activeRetenciones.forEach(r => {
           if (!r.lastSriCheck) {
-              oldestCheckDate = new Date(0); // Nunca verificado = infinitamente antiguo
+              oldestCheckDate = new Date(0);
           } else {
               const d = (r.lastSriCheck as any).toDate ? (r.lastSriCheck as any).toDate() : new Date(r.lastSriCheck as any);
               if (d < oldestCheckDate) oldestCheckDate = d;
@@ -143,7 +141,6 @@ export function RetentionHistoryTable() {
     return `${h}h ${m}m ${s}s`;
   };
 
-  // Sincronización automática de registros obsoletos (> 1 hora)
   useEffect(() => {
     if (!activeRetenciones || activeRetenciones.length === 0 || !user?.uid || !firestore) return;
     const ONE_HOUR_MS = 60 * 60 * 1000;
@@ -156,7 +153,6 @@ export function RetentionHistoryTable() {
     });
 
     if (staleRetentions.length > 0) {
-      // Ordenar para procesar la más antigua primero
       staleRetentions.sort((a, b) => {
           const dateA = (a.lastSriCheck as any)?.toDate?.() || new Date(a.lastSriCheck as any || 0);
           const dateB = (b.lastSriCheck as any)?.toDate?.() || new Date(b.lastSriCheck as any || 0);
@@ -167,7 +163,6 @@ export function RetentionHistoryTable() {
         const itemToUpdate = staleRetentions[0];
         await handleCheckSriStatus(itemToUpdate, true);
       };
-      // Esperar 5 segundos antes de procesar para evitar saturación
       const timer = setTimeout(processNextStale, 5000);
       return () => clearTimeout(timer);
     }
@@ -298,6 +293,7 @@ export function RetentionHistoryTable() {
     let previousStatus: RetentionStatus | null = null;
     if (retention.estado === 'Pendiente Anular') previousStatus = 'Solicitado';
     else if (retention.estado === 'Anulado' || retention.estado === 'No Recibido') previousStatus = 'Pendiente Anular';
+    
     if (previousStatus) {
         const retentionRef = doc(firestore, `users/${user.uid}/retenciones`, retention.id);
         updateDocumentNonBlocking(retentionRef, { estado: previousStatus });
@@ -335,15 +331,15 @@ export function RetentionHistoryTable() {
   const getSriStatusColor = (estado?: string) => {
     if (!estado) return "text-muted-foreground";
     const status = estado.toUpperCase();
-    if (status === "AUTORIZADO") return "text-foreground"; // Negro
-    if (status === "POR PROCESAR" || status === "RECIBIDO" || status.includes("PENDIENTE")) return "text-orange-500"; // Naranja
-    if (status === "ANULADO" || status === "CANCELADO") return "text-emerald-600"; // Verde
+    if (status === "AUTORIZADO") return "text-foreground";
+    if (status === "POR PROCESAR" || status === "RECIBIDO" || status.includes("PENDIENTE")) return "text-orange-500";
+    if (status === "ANULADO" || status === "CANCELADO") return "text-emerald-600";
     if (status.includes("RECHAZADO") || status.includes("ERROR") || status.includes("NO AUTORIZADO")) return "text-destructive";
     return "text-foreground";
   };
 
   const renderTableRows = (items: RetentionRecord[]) => {
-    if (items.length === 0) return <TableRow><TableCell colSpan={13} className="h-24 text-center">No hay retenciones.</TableCell></TableRow>;
+    if (items.length === 0) return <TableRow><TableCell colSpan={13} className="h-24 text-center">No hay retenciones activas.</TableCell></TableRow>;
     return items.map((item: RetentionRecord) => (
       <TableRow key={item.id} data-state={selectedRetentions[item.id] ? 'selected' : ''}>
         <TableCell className="p-2"><Checkbox checked={!!selectedRetentions[item.id]} onCheckedChange={(value) => handleSelectRetention(item, !!value)} /></TableCell>
@@ -377,17 +373,38 @@ export function RetentionHistoryTable() {
         <TableCell className="p-2 w-[130px] text-xs text-muted-foreground">{formatDate(item.createdAt)}</TableCell>
         <TableCell className="p-2 w-[100px] text-xs">{item.fechaEmision}</TableCell>
         <TableCell className="p-2 w-[120px]"><Button size="sm" variant="outline" className="text-xs h-7" onClick={() => handleVerifySri(item.numeroAutorizacion)}><ExternalLink className="mr-1 h-3 w-3" />VERIFICAR</Button></TableCell>
-        <TableCell className="p-2 w-[80px] text-center"><div className="flex items-center justify-center gap-1">{item.estado !== 'Solicitado' && <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => handleRevertStatus(item)}><RotateCcw className="h-3.5 w-3.5" /></Button>}<Button size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => setRetentionToDelete(item)}><Trash2 className="h-3.5 w-3.5" /></Button></div></TableCell>
+        <TableCell className="p-2 w-[80px] text-center">
+            <div className="flex items-center justify-center gap-1">
+                {item.estado !== 'Solicitado' && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => handleRevertStatus(item)}>
+                        <RotateCcw className="h-3.5 w-3.5" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent><p>Revertir Estado</p></TooltipContent>
+                  </Tooltip>
+                )}
+                <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => setRetentionToDelete(item)}>
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+            </div>
+        </TableCell>
         <TableCell className="p-2"><span className="font-mono text-[9px] text-muted-foreground break-all">{item.numeroAutorizacion}</span></TableCell>
       </TableRow>
     ));
   };
 
   const renderArchivedTableRows = (items: RetentionRecord[]) => {
-    if (items.length === 0) return <TableRow><TableCell colSpan={13} className="h-24 text-center">Vacio.</TableCell></TableRow>;
+    if (items.length === 0) return <TableRow><TableCell colSpan={13} className="h-24 text-center">No hay registros en esta sección.</TableCell></TableRow>;
     return items.map((item: RetentionRecord) => (
       <TableRow key={item.id}>
-         <TableCell className="p-2"><div className="flex items-center gap-1"><Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleShareForVoiding(item)}><Mail className="h-3.5 w-3.5" /></Button><Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleRequestSriAcceptance(item)}><Send className="h-3.5 w-3.5" /></Button></div></TableCell>
+         <TableCell className="p-2">
+           <div className="flex items-center gap-1">
+             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleShareForVoiding(item)}><Mail className="h-3.5 w-3.5" /></Button>
+             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleRequestSriAcceptance(item)}><Send className="h-3.5 w-3.5" /></Button>
+           </div>
+         </TableCell>
         <TableCell className="font-mono p-2 text-xs">{item.numeroRetencion}</TableCell>
         <TableCell className="font-medium p-2 text-xs truncate max-w-[150px]">{item.razonSocialProveedor}</TableCell>
         <TableCell className="p-2 text-xs">{item.numeroFactura}</TableCell>
@@ -400,8 +417,21 @@ export function RetentionHistoryTable() {
         <TableCell className="p-2 text-center"><StatusBadge status={item.estado} /></TableCell>
         <TableCell className="p-2 text-[10px] text-muted-foreground">{formatDate(item.createdAt)}</TableCell>
         <TableCell className="p-2 text-[10px]">{item.fechaEmision}</TableCell>
-        <TableCell className="p-2"><Button size="sm" variant="outline" className="text-[10px] h-6 px-1" onClick={() => handleVerifySri(item.numeroAutorizacion)}>VERIFICAR</Button></TableCell>
-        <TableCell className="p-2 text-center"><div className="flex items-center justify-center gap-1"><Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => handleRevertStatus(item)}><RotateCcw className="h-3 w-3" /></Button><Button size="icon" variant="ghost" className="h-6 w-6 text-destructive" onClick={() => setRetentionToDelete(item)}><Trash2 className="h-3 w-3" /></Button></div></TableCell>
+        <TableCell className="p-2">
+            <Button size="sm" variant="outline" className="text-[10px] h-6 px-1" onClick={() => handleVerifySri(item.numeroAutorizacion)}>
+                VERIFICAR
+            </Button>
+        </TableCell>
+        <TableCell className="p-2 text-center">
+            <div className="flex items-center justify-center gap-1">
+                <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => handleRevertStatus(item)}>
+                    <RotateCcw className="h-3 w-3" />
+                </Button>
+                <Button size="icon" variant="ghost" className="h-6 w-6 text-destructive" onClick={() => setRetentionToDelete(item)}>
+                    <Trash2 className="h-3 w-3" />
+                </Button>
+            </div>
+        </TableCell>
         <TableCell className="p-2"><span className="font-mono text-[9px] text-muted-foreground break-all">{item.numeroAutorizacion}</span></TableCell>
       </TableRow>
     ));
@@ -446,13 +476,71 @@ export function RetentionHistoryTable() {
             <TableBody>{loading ? Array.from({ length: 3 }).map((_, i) => <TableRow key={i}><TableCell colSpan={13}><Skeleton className="h-10 w-full" /></TableCell></TableRow>) : renderTableRows(activeRetenciones)}</TableBody>
           </Table>
         </div>
+
         <div className="space-y-3">
-          {noRecibidoRetenciones.length > 0 && <Accordion type="single" collapsible className="w-full"><AccordionItem value="no-recibidas" className="border rounded-lg px-4 bg-muted/20"><AccordionTrigger className="hover:no-underline"><div className="flex items-center gap-2"><FileX className="h-4 w-4 text-destructive" /><span>Retenciones No Recibidas ({noRecibidoRetenciones.length})</span></div></AccordionTrigger><AccordionContent><div className="border rounded-lg mt-2 bg-background"><Table><TableBody>{renderArchivedTableRows(noRecibidoRetenciones)}</TableBody></Table></div></AccordionContent></AccordionItem></Accordion>}
-          {anulatedRetenciones.length > 0 && <Accordion type="single" collapsible className="w-full"><AccordionItem value="anuladas" className="border rounded-lg px-4 bg-muted/20"><AccordionTrigger className="hover:no-underline"><div className="flex items-center gap-2"><Archive className="h-4 w-4 text-muted-foreground" /><span>Retenciones Anuladas ({anulatedRetenciones.length})</span></div></AccordionTrigger><AccordionContent><div className="border rounded-lg mt-2 bg-background"><Table><TableBody>{renderArchivedTableRows(anulatedRetenciones)}</TableBody></Table></div></AccordionContent></AccordionItem></Accordion>}
+          {noRecibidoRetenciones.length > 0 && (
+            <Accordion type="single" collapsible className="w-full">
+              <AccordionItem value="no-recibidas" className="border rounded-lg px-4 bg-muted/20">
+                <AccordionTrigger className="hover:no-underline">
+                  <div className="flex items-center gap-2">
+                    <FileX className="h-4 w-4 text-destructive" />
+                    <span>Retenciones No Recibidas ({noRecibidoRetenciones.length})</span>
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent>
+                  <div className="border rounded-lg mt-2 bg-background">
+                    <Table>
+                      <TableBody>
+                        {renderArchivedTableRows(noRecibidoRetenciones)}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
+          )}
+
+          {anulatedRetenciones.length > 0 && (
+            <Accordion type="single" collapsible className="w-full">
+              <AccordionItem value="anuladas" className="border rounded-lg px-4 bg-muted/20">
+                <AccordionTrigger className="hover:no-underline">
+                  <div className="flex items-center gap-2">
+                    <Archive className="h-4 w-4 text-muted-foreground" />
+                    <span>Retenciones Anuladas ({anulatedRetenciones.length})</span>
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent>
+                  <div className="border rounded-lg mt-2 bg-background">
+                    <Table>
+                      <TableBody>
+                        {renderArchivedTableRows(anulatedRetenciones)}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
+          )}
         </div>
       </CardContent>
     </Card>
-    <AlertDialog open={!!retentionToDelete} onOpenChange={(open) => !open && setRetentionToDelete(null)}><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>¿Eliminar retención?</AlertDialogTitle><AlertDialogDescription>La retención <strong>{retentionToDelete?.numeroRetencion}</strong> será eliminada permanentemente.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel onClick={() => setRetentionToDelete(null)}>Cancelar</AlertDialogCancel><AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Eliminar</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
+    
+    <AlertDialog open={!!retentionToDelete} onOpenChange={(open) => !open && setRetentionToDelete(null)}>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+                <AlertDialogTitle>¿Eliminar retención?</AlertDialogTitle>
+                <AlertDialogDescription>
+                    La retención <strong>{retentionToDelete?.numeroRetencion}</strong> de <strong>{retentionToDelete?.razonSocialProveedor}</strong> será eliminada permanentemente del historial.
+                </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+                <AlertDialogCancel onClick={() => setRetentionToDelete(null)}>Cancelar</AlertDialogCancel>
+                <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                    Eliminar
+                </AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+    </AlertDialog>
     </TooltipProvider>
   );
 }

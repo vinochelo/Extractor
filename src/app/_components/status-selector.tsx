@@ -13,7 +13,7 @@ import { doc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import type { RetentionRecord, RetentionStatus } from '@/lib/types';
 import { StatusBadge } from './status-badge';
-import { Archive, FileWarning, XCircle } from 'lucide-react';
+import { Archive, FileWarning, XCircle, CheckCircle } from 'lucide-react';
 
 interface StatusSelectorProps {
   retention: RetentionRecord;
@@ -23,7 +23,6 @@ export function StatusSelector({ retention }: StatusSelectorProps) {
   const firestore = useFirestore();
   const { user } = useUser();
   const { toast } = useToast();
-
 
   const handleStatusChange = (newStatus: RetentionStatus) => {
     if (!firestore || !user?.uid) {
@@ -49,13 +48,30 @@ export function StatusSelector({ retention }: StatusSelectorProps) {
     });
   };
 
+  const isSriAnulado = retention.sriEstado?.toUpperCase() === 'ANULADO' || retention.sriEstado?.toUpperCase() === 'CANCELADO';
+
   const availableActions: ({
     label: string;
     action: () => void;
     icon: React.ReactNode;
     isDestructive?: boolean;
     separator?: boolean;
+    isPrimary?: boolean;
   })[] = [];
+
+  // Recomendación si SRI ya está anulado
+  if (isSriAnulado && retention.estado !== 'Anulado') {
+    availableActions.push({
+      label: 'Archivar (Ya Anulado en SRI)',
+      action: () => handleStatusChange('Anulado'),
+      icon: <CheckCircle className="mr-2 h-4 w-4 text-emerald-600" />,
+      isPrimary: true,
+    });
+    availableActions.push({
+      separator: true,
+      label: '', action: () => {}, icon: null
+    });
+  }
 
   if (retention.estado === 'Solicitado') {
     availableActions.push({
@@ -83,20 +99,19 @@ export function StatusSelector({ retention }: StatusSelectorProps) {
   }
 
   return (
-    <>
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button>
+        <button className="outline-none">
           <StatusBadge status={retention.estado} className="cursor-pointer hover:opacity-80 transition-opacity" />
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="start">
-        {availableActions.map((action, index) => (
-            <React.Fragment key={action.label}>
+      <DropdownMenuContent align="center">
+        {availableActions.filter(a => a.label).map((action, index) => (
+            <React.Fragment key={index}>
                 {action.separator && <DropdownMenuSeparator />}
                 <DropdownMenuItem 
                     onSelect={action.action} 
-                    className={action.isDestructive ? "text-destructive focus:text-destructive focus:bg-destructive/10" : ""}
+                    className={action.isPrimary ? "font-bold text-emerald-700 bg-emerald-50" : ""}
                 >
                     {action.icon}
                     <span>{action.label}</span>
@@ -105,6 +120,5 @@ export function StatusSelector({ retention }: StatusSelectorProps) {
         ))}
       </DropdownMenuContent>
     </DropdownMenu>
-    </>
   );
 }
