@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -142,7 +141,7 @@ export function MainPage() {
     <main className="container mx-auto px-4 py-8 md:py-16">
       <div className="text-center mb-12">
         <h1 className="font-headline text-4xl md:text-5xl font-bold tracking-tight">
-          Retenciones Wise
+          Status Retenciones
         </h1>
         <p className="mt-4 max-w-2xl mx-auto text-lg text-muted-foreground">
           Gestión inteligente de retenciones del SRI con el poder de la IA.

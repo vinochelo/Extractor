@@ -1,5 +1,5 @@
 /**
- * @fileoverview Firestore Security Rules for RetenciónWise.
+ * @fileoverview Firestore Security Rules for Status Retenciones.
  *
  * Core Philosophy:
  * This ruleset enforces a strict user-ownership model for 'retenciones' (tax withholding documents) data.
@@ -13,21 +13,13 @@
  * - Users can only create, read, update, and delete their own 'retenciones' data.
  * - User listing is disallowed to protect user privacy.
  * - The rules leverage path-based authorization to avoid costly `get()` calls.
- *
- * Denormalization for Authorization:
- *  - The `retenciones` documents are stored under the user's path (`/users/{userId}/retenciones/{retencionId}`).
- *    This allows to avoid needing to read the user document to check ownership.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Protects the /users collection. Only allows a user to create their own profile. Read, update, and delete are disallowed.
-     * @path /users/{userId}
-     * @allow (create) User with UID 'user_abc' can create a document at /users/user_abc.
-     * @deny (get, list, update, delete) Any other operation is denied.
-     * @principle Enforces user-ownership for user profiles.
+     * @description Protects the /users collection. Only allows a user to create their own profile.
      */
     match /users/{userId} {
       allow get, list, update, delete: if false;
@@ -35,14 +27,7 @@ service cloud.firestore {
     }
 
     /**
-     * @description Manages access control for retenciones documents under a specific user. Only the owner can create, read, update, and delete their retenciones.
-     * @path /users/{userId}/retenciones/{retencionId}
-     * @allow (create) User with UID 'user_abc' can create a new retencion document under /users/user_abc/retenciones/{retencionId} if the document's userId field matches 'user_abc'.
-     * @allow (get, list) User with UID 'user_abc' can get and list retencion documents under /users/user_abc/retenciones/{retencionId}.
-     * @allow (update, delete) User with UID 'user_abc' can update and delete their existing retencion documents under /users/user_abc/retenciones/{retencionId}.
-     * @deny (create) User with UID 'user_xyz' cannot create a new retencion document under /users/user_abc/retenciones/{retencionId}.
-     * @deny (get, list, update, delete) User with UID 'user_xyz' cannot get, list, update, or delete retencion documents under /users/user_abc/retenciones/{retencionId}.
-     * @principle Enforces document ownership for writes, restricts access to a user's own retenciones data tree.
+     * @description Manages access control for retenciones documents under a specific user.
      */
     match /users/{userId}/retenciones/{retencionId} {
       allow get: if isSignedIn() && isOwner(userId);
@@ -54,28 +39,14 @@ service cloud.firestore {
 
     // --- Helper functions ---
 
-    /**
-     * @description Checks if the user is signed in.
-     * @return {bool} True if the user is signed in, false otherwise.
-     */
     function isSignedIn() {
       return request.auth != null;
     }
 
-    /**
-     * @description Checks if the user ID matches the authenticated user's UID.
-     * @param {string} userId The user ID to compare against.
-     * @return {bool} True if the user ID matches the authenticated user's UID, false otherwise.
-     */
     function isOwner(userId) {
       return request.auth.uid == userId;
     }
 
-    /**
-     * @description Checks if the user is the owner of an existing document.
-     * @param {string} userId The user ID to compare against.
-     * @return {bool} True if the user ID matches the authenticated user's UID and the resource exists.
-     */
     function isExistingOwner(userId) {
       return isOwner(userId) && resource != null;
     }

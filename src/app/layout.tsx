@@ -5,8 +5,8 @@ import { FirebaseClientProvider } from '@/firebase';
 import { Analytics } from "@vercel/analytics/react";
 
 export const metadata: Metadata = {
-  title: 'Retenciones Anuladas',
-  description: 'Extrae información de documentos PDF de retenciones de Ecuador.',
+  title: 'Status Retenciones',
+  description: 'Extrae información de documentos PDF de retenciones de Ecuador y gestiona su anulación.',
 };
 
 export default function RootLayout({
@@ -15,7 +15,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="light">
+    <html lang="es" className="light">
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
