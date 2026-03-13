@@ -368,9 +368,9 @@ export function RetentionHistoryTable() {
                         size="icon" 
                         onClick={() => handleShareForVoiding(item)} 
                         disabled={selectedCount > 0}
-                        className={cn("h-9 w-9 rounded-lg transition-all", item.emailAnularSent ? "opacity-30 scale-95" : "hover:bg-blue-50")}
+                        className={cn("h-8 w-8 rounded-lg transition-colors", item.emailAnularSent ? "opacity-30" : "hover:bg-blue-50")}
                       >
-                        <Mail className={cn("h-6 w-6", !item.emailAnularSent ? "text-blue-600" : "text-slate-400")} />
+                        <Mail className={cn("h-5 w-5", !item.emailAnularSent ? "text-blue-600" : "text-slate-400")} />
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent><p>Email para Anular</p></TooltipContent>
@@ -382,16 +382,16 @@ export function RetentionHistoryTable() {
                         size="icon" 
                         onClick={() => handleRequestSriAcceptance(item)} 
                         disabled={selectedCount > 0}
-                        className={cn("h-9 w-9 rounded-lg transition-all", item.sriAcceptanceRequested ? "opacity-30 scale-95" : "hover:bg-violet-50")}
+                        className={cn("h-8 w-8 rounded-lg transition-colors", item.sriAcceptanceRequested ? "opacity-30" : "hover:bg-violet-50")}
                       >
-                        <Send className={cn("h-6 w-6", !item.sriAcceptanceRequested ? "text-violet-700" : "text-slate-400")} />
+                        <Send className={cn("h-5 w-5", !item.sriAcceptanceRequested ? "text-violet-700" : "text-slate-400")} />
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent><p>Solicitar Aceptación SRI</p></TooltipContent>
                   </Tooltip>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg" onClick={() => handleCopy(item)}>
+                        <Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg" onClick={() => handleCopy(item)}>
                             {copiedId === item.id ? <CheckCircle2 className="h-4 w-4 text-emerald-500" /> : <Copy className="h-4 w-4 text-muted-foreground" />}
                         </Button>
                     </TooltipTrigger>
@@ -400,20 +400,20 @@ export function RetentionHistoryTable() {
               </div>
           </TableCell>
           <TableCell className="font-mono font-bold p-2 text-sm w-[130px]">{item.numeroRetencion}</TableCell>
-          <TableCell className="font-semibold p-2 w-[250px]"><div className="truncate text-sm" title={item.razonSocialProveedor}>{item.razonSocialProveedor}</div></TableCell>
+          <TableCell className="font-semibold p-2 w-[180px]"><div className="truncate text-sm" title={item.razonSocialProveedor}>{item.razonSocialProveedor}</div></TableCell>
           <TableCell className="p-2 w-[110px] font-medium text-muted-foreground text-sm">{item.numeroFactura}</TableCell>
           <TableCell className="font-mono font-bold text-right p-2 w-[110px] text-primary text-sm">{item.valorRetencion}</TableCell>
-          <TableCell className="p-2 w-[200px]">
-            <div className="flex flex-col items-center justify-center gap-1 py-1.5 px-3 bg-muted/30 rounded-2xl border border-border/60 shadow-sm">
-              <div className={cn("text-[10px] font-black uppercase tracking-widest leading-none mb-0.5", getSriStatusColor(item.sriEstado))}>
+          <TableCell className="p-2 w-[190px]">
+            <div className="flex flex-col items-center justify-center gap-1 py-1 px-2 bg-muted/30 rounded-xl border border-border/60 shadow-sm">
+              <div className={cn("text-[9px] font-black uppercase tracking-widest leading-none", getSriStatusColor(item.sriEstado))}>
                 {item.sriEstado || "NO CONSULTADO"}
               </div>
-              <div className={cn("text-[9px] flex items-center justify-center gap-1 font-bold opacity-80", getSriStatusColor(item.sriEstado))}>
-                <Clock className="h-2.5 w-2.5" />
+              <div className={cn("text-[8px] flex items-center justify-center gap-1 font-bold opacity-80", getSriStatusColor(item.sriEstado))}>
+                <Clock className="h-2 w-2" />
                 {isMounted ? (item.lastSriCheck ? formatRelativeTime(item.lastSriCheck) : 'Sin fecha') : '...'}
               </div>
-              <Button size="sm" variant="outline" className="h-6 text-[9px] font-bold px-2 rounded-lg bg-background border-border/80 hover:border-primary/50 transition-all mt-1.5" onClick={() => handleCheckSriStatus(item)} disabled={checkingSriId === item.id}>
-                {checkingSriId === item.id ? <RefreshCw className="h-2.5 w-2.5 animate-spin" /> : <RefreshCw className="h-2.5 w-2.5 mr-1" />}
+              <Button size="sm" variant="outline" className="h-5 text-[8px] font-bold px-1.5 rounded-md bg-background border-border/80 hover:border-primary/50 transition-all mt-1" onClick={() => handleCheckSriStatus(item)} disabled={checkingSriId === item.id}>
+                {checkingSriId === item.id ? <RefreshCw className="h-2 w-2 animate-spin" /> : <RefreshCw className="h-2 w-2 mr-1" />}
                 SINCRONIZAR
               </Button>
             </div>
@@ -427,19 +427,19 @@ export function RetentionHistoryTable() {
                   {(item.estado !== 'Solicitado' || item.emailAnularSent || item.sriAcceptanceRequested) && (
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <Button size="icon" variant="ghost" className="h-8 w-8 rounded-full hover:bg-orange-50 text-orange-600" onClick={() => handleRevertStatus(item)}>
-                          <RotateCcw className="h-4 w-4" />
+                        <Button size="icon" variant="ghost" className="h-7 w-7 rounded-full hover:bg-orange-50 text-orange-600" onClick={() => handleRevertStatus(item)}>
+                          <RotateCcw className="h-3.5 w-3.5" />
                         </Button>
                       </TooltipTrigger>
                       <TooltipContent><p>Revertir Estado</p></TooltipContent>
                     </Tooltip>
                   )}
-                  <Button size="icon" variant="ghost" className="h-8 w-8 rounded-full text-destructive/60 hover:text-destructive hover:bg-destructive/5" onClick={() => setRetentionToDelete(item)}>
-                    <Trash2 className="h-4 w-4" />
+                  <Button size="icon" variant="ghost" className="h-7 w-7 rounded-full text-destructive/60 hover:text-destructive hover:bg-destructive/5" onClick={() => setRetentionToDelete(item)}>
+                    <Trash2 className="h-3.5 w-3.5" />
                   </Button>
               </div>
           </TableCell>
-          <TableCell className="p-2"><div className="font-mono text-[9px] text-muted-foreground/60 break-all leading-tight max-w-[150px]">{item.numeroAutorizacion}</div></TableCell>
+          <TableCell className="p-2"><div className="font-mono text-[9px] text-muted-foreground/60 break-all leading-tight max-w-[120px]">{item.numeroAutorizacion}</div></TableCell>
         </TableRow>
       );
     });
@@ -451,15 +451,15 @@ export function RetentionHistoryTable() {
       <TableRow key={item.id} className="opacity-70 hover:opacity-100 transition-opacity">
          <TableCell className="p-2">
            <div className="flex items-center gap-1.5">
-             <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg" onClick={() => handleShareForVoiding(item)}><Mail className="h-4 w-4 text-blue-600" /></Button>
-             <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg" onClick={() => handleRequestSriAcceptance(item)}><Send className="h-4 w-4 text-violet-700" /></Button>
+             <Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg" onClick={() => handleShareForVoiding(item)}><Mail className="h-4 w-4 text-blue-600" /></Button>
+             <Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg" onClick={() => handleRequestSriAcceptance(item)}><Send className="h-4 w-4 text-violet-700" /></Button>
            </div>
          </TableCell>
         <TableCell className="font-mono p-2 text-[12px] font-bold">{item.numeroRetencion}</TableCell>
-        <TableCell className="font-semibold p-2 text-[12px] truncate max-w-[200px]">{item.razonSocialProveedor}</TableCell>
+        <TableCell className="font-semibold p-2 text-[12px] truncate max-w-[150px]">{item.razonSocialProveedor}</TableCell>
         <TableCell className="p-2 text-[12px] text-muted-foreground">{item.numeroFactura}</TableCell>
         <TableCell className="font-mono font-bold text-right p-2 text-[12px]">{item.valorRetencion}</TableCell>
-        <TableCell className="p-2 w-[200px]">
+        <TableCell className="p-2 w-[180px]">
           <div className={cn("text-[11px] font-black uppercase text-center py-1 px-3 rounded-full bg-muted/40", getSriStatusColor(item.sriEstado))}>
             {item.sriEstado || "N/A"}
           </div>
@@ -474,10 +474,10 @@ export function RetentionHistoryTable() {
         </TableCell>
         <TableCell className="p-2 text-center">
             <div className="flex items-center justify-center gap-1.5">
-                <Button size="icon" variant="ghost" className="h-8 w-8 rounded-full" onClick={() => handleRevertStatus(item)}>
+                <Button size="icon" variant="ghost" className="h-7 w-7 rounded-full" onClick={() => handleRevertStatus(item)}>
                     <RotateCcw className="h-4 w-4" />
                 </Button>
-                <Button size="icon" variant="ghost" className="h-8 w-8 rounded-full text-destructive" onClick={() => setRetentionToDelete(item)}>
+                <Button size="icon" variant="ghost" className="h-7 w-7 rounded-full text-destructive" onClick={() => setRetentionToDelete(item)}>
                     <Trash2 className="h-4 w-4" />
                 </Button>
             </div>
@@ -502,13 +502,13 @@ export function RetentionHistoryTable() {
         {error && <Alert variant="destructive" className="mb-4 rounded-xl border-2"><FileWarning className="h-4 w-4" /><AlertTitle className="font-bold text-xs">Error de Red</AlertTitle><AlertDescription className="text-xs">{error.message}</AlertDescription></Alert>}
         
         <div className={cn(
-          "flex items-center gap-3 mb-4 p-2 bg-muted/30 border border-border/50 rounded-xl transition-all",
+          "flex items-center gap-3 mb-4 p-1.5 bg-muted/30 border border-border/50 rounded-xl transition-all",
           selectedCount > 0 ? "translate-y-0 opacity-100" : "-translate-y-2 opacity-0 pointer-events-none h-0 p-0 mb-0"
         )}>
             <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-2">Seleccionados ({selectedCount}):</div>
-            <Button onClick={handleBulkShareForVoiding} size="sm" className="h-8 bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-sm transition-all text-[11px] px-3 font-bold"><Mail className="mr-1.5 h-3.5 w-3.5" />Email Anular</Button>
-            <Button onClick={handleBulkRequestSriAcceptance} size="sm" className="h-8 bg-violet-700 hover:bg-violet-800 text-white rounded-lg shadow-sm transition-all text-[11px] px-3 font-bold"><Send className="mr-1.5 h-3.5 w-3.5" />Aceptación SRI</Button>
-            <Button onClick={() => setSelectedRetentions({})} variant="ghost" size="sm" className="h-8 text-[10px] font-bold rounded-lg ml-auto">Limpiar Selección</Button>
+            <Button onClick={handleBulkShareForVoiding} size="sm" className="h-7 bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-sm transition-all text-[10px] px-3 font-bold"><Mail className="mr-1.5 h-3 w-3" />Email Anular</Button>
+            <Button onClick={handleBulkRequestSriAcceptance} size="sm" className="h-7 bg-violet-700 hover:bg-violet-800 text-white rounded-lg shadow-sm transition-all text-[10px] px-3 font-bold"><Send className="mr-1.5 h-3 w-3" />Aceptación SRI</Button>
+            <Button onClick={() => setSelectedRetentions({})} variant="ghost" size="sm" className="h-7 text-[9px] font-bold rounded-lg ml-auto">Limpiar Selección</Button>
         </div>
 
         <div className="border rounded-2xl mb-6 overflow-hidden shadow-sm bg-background/60">
@@ -518,16 +518,16 @@ export function RetentionHistoryTable() {
                 <TableHead className="w-[40px] p-2"><Checkbox checked={selectedCount > 0 && selectedCount === activeRetenciones.length} onCheckedChange={(value) => handleSelectAll(!!value)} className="rounded" /></TableHead>
                 <TableHead className="p-2 w-[110px] font-bold text-[9px] uppercase tracking-widest">Acciones</TableHead>
                 <TableHead className="p-2 w-[130px] font-bold text-[9px] uppercase tracking-widest">Retención</TableHead>
-                <TableHead className="p-2 w-[250px] font-bold text-[9px] uppercase tracking-widest">Proveedor</TableHead>
+                <TableHead className="p-2 w-[180px] font-bold text-[9px] uppercase tracking-widest">Proveedor</TableHead>
                 <TableHead className="p-2 w-[110px] font-bold text-[9px] uppercase tracking-widest">Factura</TableHead>
                 <TableHead className="text-right p-2 w-[110px] font-bold text-[9px] uppercase tracking-widest">Valor</TableHead>
-                <TableHead className="p-2 w-[200px] text-center font-bold text-[9px] uppercase tracking-widest">SRI Status</TableHead>
+                <TableHead className="p-2 w-[190px] text-center font-bold text-[9px] uppercase tracking-widest">SRI Status</TableHead>
                 <TableHead className="p-2 w-[140px] text-center font-bold text-[9px] uppercase tracking-widest">App Status</TableHead>
                 <TableHead className="p-2 w-[120px] font-bold text-[9px] uppercase tracking-widest">Registro</TableHead>
                 <TableHead className="p-2 w-[100px] font-bold text-[9px] uppercase tracking-widest">Emisión</TableHead>
                 <TableHead className="p-2 w-[110px] font-bold text-[9px] uppercase tracking-widest text-center">Consultas</TableHead>
                 <TableHead className="text-center p-2 w-[90px] font-bold text-[9px] uppercase tracking-widest">Ops</TableHead>
-                <TableHead className="p-2 font-bold text-[9px] uppercase tracking-widest min-w-[150px]">Autorización</TableHead>
+                <TableHead className="p-2 font-bold text-[9px] uppercase tracking-widest min-w-[120px]">Autorización</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody className="bg-background/20 backdrop-blur-sm">{loading ? Array.from({ length: 4 }).map((_, i) => <TableRow key={i}><TableCell colSpan={13}><Skeleton className="h-12 w-full my-1 rounded-xl" /></TableCell></TableRow>) : renderTableRows(activeRetenciones)}</TableBody>

@@ -143,7 +143,7 @@ export function MainPage() {
 
   return (
     <main className="min-h-screen bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-50 via-background to-background">
-      <div className="container mx-auto px-2 py-4 md:py-8 max-w-[98%]">
+      <div className="container mx-auto px-2 py-4 md:py-8 max-w-[94%] transition-all duration-300">
         <header className="text-center mb-6 relative animate-in fade-in slide-in-from-top-10 duration-1000">
           <h1 className="font-headline text-5xl md:text-7xl font-black tracking-tighter text-primary mb-2 filter drop-shadow-sm">
             Status Retenciones
