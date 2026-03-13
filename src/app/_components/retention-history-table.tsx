@@ -91,6 +91,8 @@ export function RetentionHistoryTable() {
 
   useEffect(() => {
     setIsMounted(true);
+    // Inicializamos la hora actual al montar para detectar el cambio "en punto"
+    lastSyncHourRef.current = new Date().getHours();
   }, []);
 
   const retencionesQuery = useMemoFirebase(() => {
@@ -114,53 +116,91 @@ export function RetentionHistoryTable() {
     return { activeRetenciones: active, anulatedRetenciones: anulated, noRecibidoRetenciones: noRecibido };
   }, [retenciones]);
 
-  // Lógica del Cronómetro "En Punto"
+  // Lógica del Cronómetro "En Punto" y Sincronización Automática
   useEffect(() => {
     if (!isMounted) return;
     
     const interval = setInterval(() => {
+      const now = new Date();
+      const currentHour = now.getHours();
+
       if (!activeRetenciones || activeRetenciones.length === 0) {
           setSecondsUntilSync(0);
+          lastSyncHourRef.current = currentHour;
           return;
       }
       
-      const now = new Date();
       // Calculamos la próxima hora en punto
       const nextHour = startOfHour(addHours(now, 1));
       const diffSeconds = Math.floor((nextHour.getTime() - now.getTime()) / 1000);
-      
       setSecondsUntilSync(diffSeconds);
 
-      // Si llegamos al segundo 0 o acabamos de pasar al nuevo bloque de hora
-      const currentHour = now.getHours();
+      // Si ha cambiado la hora (estamos en el minuto 0 segundo 0 aprox)
       if (lastSyncHourRef.current !== null && lastSyncHourRef.current !== currentHour) {
-          // Ha cambiado la hora (estamos en el minuto 0)
           triggerBatchSync();
+          lastSyncHourRef.current = currentHour;
       }
-      lastSyncHourRef.current = currentHour;
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [activeRetenciones, isMounted]);
+  }, [activeRetenciones, isMounted, user?.uid, firestore]);
 
   const triggerBatchSync = async () => {
     if (!activeRetenciones || activeRetenciones.length === 0 || !user?.uid || !firestore) return;
 
-    // Seleccionamos las 5 que llevan más tiempo sin revisarse
+    // Seleccionamos las 5 que llevan más tiempo sin revisarse (orden ascendente de lastSriCheck)
     const itemsToSync = [...activeRetenciones]
       .sort((a, b) => {
-        const dateA = (a.lastSriCheck as any)?.toDate?.() || new Date(a.lastSriCheck as any || 0);
-        const dateB = (b.lastSriCheck as any)?.toDate?.() || new Date(b.lastSriCheck as any || 0);
+        const dateA = a.lastSriCheck instanceof Date ? a.lastSriCheck : (a.lastSriCheck as any)?.toDate?.() || new Date(0);
+        const dateB = b.lastSriCheck instanceof Date ? b.lastSriCheck : (b.lastSriCheck as any)?.toDate?.() || new Date(0);
         return dateA.getTime() - dateB.getTime();
       })
       .slice(0, 5);
 
     if (itemsToSync.length > 0) {
       toast({ 
-        title: 'Sincronización Automática', 
-        description: `Actualizando estado de ${itemsToSync.length} retenciones...` 
+        title: 'Sincronización Automática SRI', 
+        description: `Actualizando estado actual de ${itemsToSync.length} comprobantes...` 
       });
+      
+      // Ejecutamos las peticiones en paralelo (Batch de 5)
       await Promise.all(itemsToSync.map(item => handleCheckSriStatus(item, true)));
+    }
+  };
+
+  const handleCheckSriStatus = async (item: RetentionRecord, silent = false) => {
+    if (!firestore || !user?.uid) return;
+    if (!silent) setCheckingSriId(item.id);
+    
+    try {
+      // Consulta directa a la API para traer información fresca
+      const sriData = await consultarFacturaSRI(item.numeroAutorizacion);
+      
+      const retentionRef = doc(firestore, `users/${user.uid}/retenciones`, item.id);
+      
+      // Actualizamos Firestore con los datos nuevos y la nueva marca de tiempo de revisión
+      updateDocumentNonBlocking(retentionRef, { 
+        sriEstado: sriData.estado, 
+        sriMensaje: sriData.mensaje || null, 
+        lastSriCheck: new Date() 
+      });
+      
+      if (!silent) {
+        toast({ 
+          title: 'SRI Actualizado', 
+          description: `Comprobante ${item.numeroRetencion}: ${sriData.estado}` 
+        });
+      }
+    } catch (err: any) {
+      if (!silent) {
+        toast({ 
+          variant: 'destructive', 
+          title: 'Error de Sincronización', 
+          description: `No se pudo conectar con el SRI para el comprobante ${item.numeroRetencion}.` 
+        });
+      }
+    } finally {
+      if (!silent) setCheckingSriId(null);
     }
   };
 
@@ -283,21 +323,6 @@ export function RetentionHistoryTable() {
     window.location.href = `mailto:${providerEmails}?subject=${subject}&body=${encodeURIComponent(emailBody)}`;
   };
 
-  const handleCheckSriStatus = async (item: RetentionRecord, silent = false) => {
-    if (!firestore || !user?.uid) return;
-    if (!silent) setCheckingSriId(item.id);
-    try {
-      const sriData = await consultarFacturaSRI(item.numeroAutorizacion);
-      const retentionRef = doc(firestore, `users/${user.uid}/retenciones`, item.id);
-      updateDocumentNonBlocking(retentionRef, { sriEstado: sriData.estado, sriMensaje: sriData.mensaje || null, lastSriCheck: new Date() });
-      if (!silent) toast({ title: 'SRI Actualizado', description: `Estado SRI para ${item.numeroRetencion}: ${sriData.estado}` });
-    } catch (err: any) {
-      if (!silent) toast({ variant: 'destructive', title: 'Error SRI', description: 'No se pudo consultar el estado del SRI.' });
-    } finally {
-      if (!silent) setCheckingSriId(null);
-    }
-  };
-
   const handleRevertStatus = (retention: RetentionRecord) => {
     if (!firestore || !user?.uid) return;
     let previousStatus: RetentionStatus | null = null;
@@ -404,7 +429,7 @@ export function RetentionHistoryTable() {
           <TableCell className="font-mono font-bold text-right p-2 w-[110px] text-primary text-sm">{item.valorRetencion}</TableCell>
           <TableCell className="p-2 w-[220px]">
             <div className="flex flex-col items-center justify-center gap-1.5 py-2 px-3 bg-muted/30 rounded-xl border border-border/60 shadow-sm min-h-[70px]">
-              <div className={cn("text-sm font-black uppercase tracking-widest leading-none", getSriStatusColor(item.sriEstado))}>
+              <div className={cn("text-lg font-black uppercase tracking-widest leading-none", getSriStatusColor(item.sriEstado))}>
                 {item.sriEstado || "NO CONSULTADO"}
               </div>
               <div className={cn("text-[11px] flex items-center justify-center gap-1 font-bold opacity-80", getSriStatusColor(item.sriEstado))}>
