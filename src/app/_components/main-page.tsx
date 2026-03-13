@@ -138,33 +138,36 @@ export function MainPage() {
   }, [file, user, firestore]);
 
   return (
-    <main className="container mx-auto px-4 py-8 md:py-16">
-      <div className="text-center mb-12">
-        <h1 className="font-headline text-4xl md:text-5xl font-bold tracking-tight">
+    <main className="container mx-auto px-4 py-12 md:py-20">
+      <div className="text-center mb-16">
+        <h1 className="font-headline text-5xl md:text-6xl font-extrabold tracking-tight text-primary mb-4">
           Status Retenciones
         </h1>
-        <p className="mt-4 max-w-2xl mx-auto text-lg text-muted-foreground">
+        <div className="h-1 w-24 bg-primary mx-auto mb-6 rounded-full opacity-20" />
+        <p className="max-w-2xl mx-auto text-xl text-muted-foreground font-medium">
           Gestión inteligente de retenciones del SRI con el poder de la IA.
         </p>
       </div>
 
-      <Tabs defaultValue="historial" className="space-y-8">
-        <TabsList className="grid w-full max-w-md mx-auto grid-cols-2">
-          <TabsTrigger value="historial">Historial y Carga</TabsTrigger>
-          <TabsTrigger value="herramientas">Consultas SRI</TabsTrigger>
+      <Tabs defaultValue="historial" className="space-y-12">
+        <TabsList className="grid w-full max-w-lg mx-auto grid-cols-2 p-1 bg-muted/50 rounded-xl">
+          <TabsTrigger value="historial" className="rounded-lg py-2.5 data-[state=active]:shadow-md">Historial y Carga</TabsTrigger>
+          <TabsTrigger value="herramientas" className="rounded-lg py-2.5 data-[state=active]:shadow-md">Consultas Autorizaciones</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="historial" className="space-y-12">
+        <TabsContent value="historial" className="space-y-16">
           <RetentionHistoryTable key={historyKey} />
 
-          <PdfUploader
-            file={file}
-            onFileChange={handleFileChange}
-            onFileRemove={handleRemoveFile}
-            loading={loading || isUserLoading}
-            error={error}
-            warning={duplicateWarning}
-          />
+          <div className="bg-card/30 p-8 rounded-3xl border border-dashed border-primary/20">
+            <PdfUploader
+              file={file}
+              onFileChange={handleFileChange}
+              onFileRemove={handleRemoveFile}
+              loading={loading || isUserLoading}
+              error={error}
+              warning={duplicateWarning}
+            />
+          </div>
 
           {extractedData && <ExtractionResultCard data={extractedData} />}
           

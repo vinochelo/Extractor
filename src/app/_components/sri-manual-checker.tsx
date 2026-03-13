@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { consultarFacturaSRI, SriResponse } from "@/lib/sri-service";
-import { Loader2, Search, CheckCircle2, AlertCircle, Clock, Info } from "lucide-react";
+import { Loader2, Search, CheckCircle2, AlertCircle, Clock, Info, ShieldCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
@@ -57,54 +57,74 @@ export function SriManualChecker() {
   };
 
   return (
-    <Card className="w-full max-w-2xl mx-auto mt-8">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Search className="h-5 w-5" />
-          Consulta Individual SRI
-        </CardTitle>
-        <CardDescription>
-          Ingresa los 49 dígitos de la clave de acceso o número de autorización para verificar su estado actual.
+    <Card className="w-full max-w-3xl mx-auto mt-8 border-2 shadow-xl rounded-2xl overflow-hidden">
+      <CardHeader className="bg-muted/30 pb-8">
+        <div className="flex items-center gap-3 mb-2">
+            <div className="p-2 bg-primary/10 rounded-lg">
+                <ShieldCheck className="h-6 w-6 text-primary" />
+            </div>
+            <CardTitle className="text-2xl">Consulta Individual SRI</CardTitle>
+        </div>
+        <CardDescription className="text-base">
+          Verifica la validez y el estado actual de cualquier comprobante electrónico.
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="flex flex-col sm:flex-row gap-3">
-          <div className="relative flex-1">
-            <Input
-              placeholder="0000000000000000000000000000000000000000000000000"
-              value={clave}
-              onChange={handleInputChange}
-              className="font-mono"
-              disabled={loading}
-            />
-            <div className="absolute right-3 top-2 text-xs text-muted-foreground">
-              {clave.length}/49
+      <CardContent className="space-y-8 pt-8 px-8">
+        <div className="space-y-4">
+          <label className="text-sm font-bold text-muted-foreground uppercase tracking-wider ml-1">
+            Clave de Acceso / Número de Autorización
+          </label>
+          <div className="flex flex-col gap-4">
+            <div className="relative group">
+              <Input
+                placeholder="Ingresa los 49 dígitos numéricos..."
+                value={clave}
+                onChange={handleInputChange}
+                className={cn(
+                  "h-16 text-lg font-mono tracking-[0.2em] px-4 border-2 transition-all duration-300 rounded-xl",
+                  clave.length === 49 ? "border-primary bg-primary/5" : "hover:border-primary/50"
+                )}
+                disabled={loading}
+              />
+              <div className={cn(
+                "absolute right-4 top-1/2 -translate-y-1/2 text-sm font-bold px-2 py-1 rounded-md transition-all duration-300",
+                clave.length === 49 ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+              )}>
+                {clave.length}/49
+              </div>
             </div>
+            <Button 
+                onClick={handleConsultar} 
+                disabled={loading || clave.length !== 49}
+                className="h-14 text-lg font-bold rounded-xl shadow-lg hover:shadow-primary/20 transition-all active:scale-95"
+            >
+              {loading ? <Loader2 className="mr-2 h-6 w-6 animate-spin" /> : <Search className="mr-2 h-6 w-6" />}
+              Consultar ahora en el SRI
+            </Button>
           </div>
-          <Button onClick={handleConsultar} disabled={loading || clave.length !== 49}>
-            {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Search className="mr-2 h-4 w-4" />}
-            Consultar
-          </Button>
         </div>
 
         {error && (
-          <Alert variant="destructive">
+          <Alert variant="destructive" className="animate-in fade-in slide-in-from-top-4">
             <AlertCircle className="h-4 w-4" />
-            <AlertTitle>Error</AlertTitle>
+            <AlertTitle className="font-bold">Error de consulta</AlertTitle>
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         )}
 
         {result && (
-          <div className={cn("p-4 rounded-lg border flex flex-col gap-2 animate-in fade-in zoom-in duration-300", getStatusStyles(result.estado))}>
-            <div className="flex items-center gap-2 font-bold">
+          <div className={cn(
+            "p-6 rounded-2xl border-2 flex flex-col gap-3 animate-in fade-in zoom-in duration-500 shadow-sm", 
+            getStatusStyles(result.estado)
+          )}>
+            <div className="flex items-center gap-3 text-xl font-extrabold uppercase tracking-tight">
               {getStatusIcon(result.estado)}
-              <span>ESTADO SRI: {result.estado}</span>
+              <span>Estado: {result.estado}</span>
             </div>
             {result.mensaje && (
-              <div className="text-sm flex gap-2">
-                <Info className="h-4 w-4 shrink-0 mt-0.5" />
-                <p><strong>Detalle:</strong> {result.mensaje}</p>
+              <div className="text-sm font-medium flex gap-3 p-3 bg-background/50 rounded-xl border border-current/20">
+                <Info className="h-5 w-5 shrink-0" />
+                <p><span className="font-bold opacity-70">Detalle del SRI:</span> {result.mensaje}</p>
               </div>
             )}
           </div>
