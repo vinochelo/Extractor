@@ -156,7 +156,7 @@ export function RetentionHistoryTable() {
     if (itemsToSync.length > 0) {
       toast({ 
         title: 'Sincronización Automática SRI', 
-        description: `Actualizando estado actual de ${itemsToSync.length} comprobantes secuencialmente...` 
+        description: `Actualizando estado de ${itemsToSync.length} comprobantes secuencialmente...` 
       });
       
       for (const item of itemsToSync) {
@@ -171,7 +171,7 @@ export function RetentionHistoryTable() {
     setIsBulkSyncing(true);
     toast({ 
       title: 'Iniciando Consulta Masiva', 
-      description: `Consultando el estado de ${activeRetenciones.length} comprobantes en el SRI uno por uno...` 
+      description: `Consultando el estado de ${activeRetenciones.length} comprobantes secuencialmente...` 
     });
 
     try {
@@ -199,7 +199,7 @@ export function RetentionHistoryTable() {
     if (!silent) setCheckingSriId(item.id);
     
     const maxRetries = 2;
-    const retryDelays = [30000, 60000]; // 30s, 1m
+    const retryDelays = [30000, 60000]; // 30s, 60s
 
     let success = false;
     let attempt = 0;
@@ -226,20 +226,18 @@ export function RetentionHistoryTable() {
         attempt++;
         if (attempt <= maxRetries) {
           const nextDelay = retryDelays[attempt - 1];
-          if (!silent || attempt === 1) {
-             toast({
-                variant: 'warning',
-                title: `Reintentando consulta (${attempt}/${maxRetries})`,
-                description: `Error con ${item.numeroRetencion}. Reintentando en ${nextDelay / 1000}s...`
-             });
-          }
+          toast({
+            variant: 'warning',
+            title: `Reintentando consulta (${attempt}/${maxRetries})`,
+            description: `Error con ${item.numeroRetencion}. Reintentando en ${nextDelay / 1000}s...`
+          });
           await new Promise(resolve => setTimeout(resolve, nextDelay));
         } else {
           if (!silent) {
             toast({ 
               variant: 'destructive', 
               title: 'Error de Sincronización', 
-              description: `No se pudo conectar con el SRI para el comprobante ${item.numeroRetencion} tras ${maxRetries} reintentos.` 
+              description: `No se pudo conectar con el SRI para ${item.numeroRetencion} tras ${maxRetries} reintentos.` 
             });
           }
         }
@@ -424,99 +422,97 @@ export function RetentionHistoryTable() {
 
   const renderTableRows = (items: RetentionRecord[]) => {
     if (items.length === 0) return <TableRow><TableCell colSpan={13} className="h-48 text-center text-muted-foreground italic">No hay retenciones activas para mostrar.</TableCell></TableRow>;
-    return items.map((item: RetentionRecord) => {
-      return (
-        <TableRow key={item.id} className={cn("transition-colors", selectedRetentions[item.id] ? "bg-primary/[0.03]" : "hover:bg-muted/30")}>
-          <TableCell className="p-2"><Checkbox checked={!!selectedRetentions[item.id]} onCheckedChange={(value) => handleSelectRetention(item, !!value)} className="rounded" /></TableCell>
-          <TableCell className="p-2">
-              <div className="flex items-center gap-1.5 px-2">
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        onClick={() => handleShareForVoiding(item)} 
-                        disabled={selectedCount > 0}
-                        className={cn("h-8 w-8 rounded-lg transition-colors", item.emailAnularSent ? "opacity-30" : "hover:bg-blue-50")}
-                      >
-                        <Mail className={cn("h-5 w-5", !item.emailAnularSent ? "text-blue-600" : "text-slate-400")} />
+    return items.map((item: RetentionRecord) => (
+      <TableRow key={item.id} className={cn("transition-colors", selectedRetentions[item.id] ? "bg-primary/[0.03]" : "hover:bg-muted/30")}>
+        <TableCell className="p-2"><Checkbox checked={!!selectedRetentions[item.id]} onCheckedChange={(value) => handleSelectRetention(item, !!value)} className="rounded" /></TableCell>
+        <TableCell className="p-2">
+            <div className="flex items-center gap-1.5 px-2">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      onClick={() => handleShareForVoiding(item)} 
+                      disabled={selectedCount > 0}
+                      className={cn("h-8 w-8 rounded-lg transition-colors", item.emailAnularSent ? "opacity-30" : "hover:bg-blue-50")}
+                    >
+                      <Mail className={cn("h-5 w-5", !item.emailAnularSent ? "text-blue-600" : "text-slate-400")} />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="top"><p>Email para Anular</p></TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      onClick={() => handleRequestSriAcceptance(item)} 
+                      disabled={selectedCount > 0}
+                      className={cn("h-8 w-8 rounded-lg transition-colors", item.sriAcceptanceRequested ? "opacity-30" : "hover:bg-violet-50")}
+                    >
+                      <Send className={cn("h-5 w-5", !item.sriAcceptanceRequested ? "text-violet-700" : "text-slate-400")} />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="top"><p>Solicitar Aceptación SRI</p></TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg" onClick={() => handleCopy(item)}>
+                          {copiedId === item.id ? <CheckCircle2 className="h-4 w-4 text-emerald-500" /> : <Copy className="h-4 w-4 text-muted-foreground" />}
                       </Button>
-                    </TooltipTrigger>
-                    <TooltipContent side="top"><p>Email para Anular</p></TooltipContent>
-                  </Tooltip>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        onClick={() => handleRequestSriAcceptance(item)} 
-                        disabled={selectedCount > 0}
-                        className={cn("h-8 w-8 rounded-lg transition-colors", item.sriAcceptanceRequested ? "opacity-30" : "hover:bg-violet-50")}
-                      >
-                        <Send className={cn("h-5 w-5", !item.sriAcceptanceRequested ? "text-violet-700" : "text-slate-400")} />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent side="top"><p>Solicitar Aceptación SRI</p></TooltipContent>
-                  </Tooltip>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg" onClick={() => handleCopy(item)}>
-                            {copiedId === item.id ? <CheckCircle2 className="h-4 w-4 text-emerald-500" /> : <Copy className="h-4 w-4 text-muted-foreground" />}
-                        </Button>
-                    </TooltipTrigger>
-                    <TooltipContent side="top"><p>Copiar Datos</p></TooltipContent>
-                  </Tooltip>
-              </div>
-          </TableCell>
-          <TableCell className="font-mono font-bold p-2 text-sm w-[160px] whitespace-nowrap">{item.numeroRetencion}</TableCell>
-          <TableCell className="font-semibold p-2 w-[150px]"><div className="truncate text-sm" title={item.razonSocialProveedor}>{item.razonSocialProveedor}</div></TableCell>
-          <TableCell className="p-2 w-[110px] font-medium text-muted-foreground text-sm">{item.numeroFactura}</TableCell>
-          <TableCell className="font-mono font-bold text-right p-2 w-[110px] text-primary text-sm">{item.valorRetencion}</TableCell>
-          <TableCell className="p-2 w-[220px]">
-            <div className="flex flex-col items-center justify-center gap-1.5 py-2 px-3 bg-muted/30 rounded-xl border border-border/60 shadow-sm min-h-[70px]">
-              <div className={cn("text-lg font-black uppercase tracking-widest leading-none", getSriStatusColor(item.sriEstado))}>
-                {item.sriEstado || "NO CONSULTADO"}
-              </div>
-              <div className={cn("text-[11px] flex items-center justify-center gap-1 font-bold opacity-80", getSriStatusColor(item.sriEstado))}>
-                <Clock className="h-3 w-3" />
-                {isMounted ? (item.lastSriCheck ? formatRelativeTime(item.lastSriCheck) : 'Sin fecha') : '...'}
-              </div>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button size="sm" variant="outline" className="h-6 text-[10px] font-bold px-2 rounded-md bg-background border-border/80 hover:border-primary/50 transition-all mt-1" onClick={() => handleCheckSriStatus(item)} disabled={checkingSriId === item.id}>
-                    {checkingSriId === item.id ? <RefreshCw className="h-2.5 w-2.5 animate-spin" /> : <RefreshCw className="h-2.5 w-2.5 mr-1.5" />}
-                    Revisar autorización en el SRI
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent side="top"><p>Revisar autorización en el SRI</p></TooltipContent>
-              </Tooltip>
+                  </TooltipTrigger>
+                  <TooltipContent side="top"><p>Copiar Datos</p></TooltipContent>
+                </Tooltip>
             </div>
-          </TableCell>
-          <TableCell className="p-2 w-[140px] text-center"><StatusSelector retention={item} /></TableCell>
-          <TableCell className="p-2 w-[120px] text-[11px] font-medium text-muted-foreground">{formatDate(item.createdAt)}</TableCell>
-          <TableCell className="p-2 w-[100px] text-[11px] font-medium">{item.fechaEmision}</TableCell>
-          <TableCell className="p-2 w-[115px] text-center"><Button size="sm" variant="ghost" className="text-[10px] h-8 px-2 font-bold border border-dashed border-primary/20 hover:border-primary/40 rounded-lg" onClick={() => handleVerifySri(item.numeroAutorizacion)}><ExternalLink className="mr-1 h-3.5 w-3.5" />WEB SRI</Button></TableCell>
-          <TableCell className="p-2 w-[90px] text-center">
-              <div className="flex items-center justify-center gap-1.5">
-                  {(item.estado !== 'Solicitado' || item.emailAnularSent || item.sriAcceptanceRequested) && (
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button size="icon" variant="ghost" className="h-7 w-7 rounded-full hover:bg-orange-50 text-orange-600" onClick={() => handleRevertStatus(item)}>
-                          <RotateCcw className="h-3.5 w-3.5" />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent side="top"><p>Revertir Estado</p></TooltipContent>
-                    </Tooltip>
-                  )}
-                  <Button size="icon" variant="ghost" className="h-7 w-7 rounded-full text-destructive/60 hover:text-destructive hover:bg-destructive/5" onClick={() => setRetentionToDelete(item)}>
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
-              </div>
-          </TableCell>
-          <TableCell className="p-2"><div className="font-mono text-[9px] text-muted-foreground/60 break-all leading-tight max-w-[120px]">{item.numeroAutorizacion}</div></TableCell>
-        </TableRow>
-      );
-    });
+        </TableCell>
+        <TableCell className="font-mono font-bold p-2 text-sm w-[160px] whitespace-nowrap">{item.numeroRetencion}</TableCell>
+        <TableCell className="font-semibold p-2 w-[150px]"><div className="truncate text-sm" title={item.razonSocialProveedor}>{item.razonSocialProveedor}</div></TableCell>
+        <TableCell className="p-2 w-[110px] font-medium text-muted-foreground text-sm">{item.numeroFactura}</TableCell>
+        <TableCell className="font-mono font-bold text-right p-2 w-[110px] text-primary text-sm">{item.valorRetencion}</TableCell>
+        <TableCell className="p-2 w-[220px]">
+          <div className="flex flex-col items-center justify-center gap-1.5 py-2 px-3 bg-muted/30 rounded-xl border border-border/60 shadow-sm min-h-[70px]">
+            <div className={cn("text-lg font-black uppercase tracking-widest leading-none", getSriStatusColor(item.sriEstado))}>
+              {item.sriEstado || "NO CONSULTADO"}
+            </div>
+            <div className={cn("text-[11px] flex items-center justify-center gap-1 font-bold opacity-80", getSriStatusColor(item.sriEstado))}>
+              <Clock className="h-3 w-3" />
+              {isMounted ? (item.lastSriCheck ? formatRelativeTime(item.lastSriCheck) : 'Sin fecha') : '...'}
+            </div>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button size="sm" variant="outline" className="h-6 text-[10px] font-bold px-2 rounded-md bg-background border-border/80 hover:border-primary/50 transition-all mt-1" onClick={() => handleCheckSriStatus(item)} disabled={checkingSriId === item.id}>
+                  {checkingSriId === item.id ? <RefreshCw className="h-2.5 w-2.5 animate-spin" /> : <RefreshCw className="h-2.5 w-2.5 mr-1.5" />}
+                  Consultar SRI
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="top"><p>Revisar autorización en el SRI</p></TooltipContent>
+            </Tooltip>
+          </div>
+        </TableCell>
+        <TableCell className="p-2 w-[140px] text-center"><StatusSelector retention={item} /></TableCell>
+        <TableCell className="p-2 w-[120px] text-[11px] font-medium text-muted-foreground">{formatDate(item.createdAt)}</TableCell>
+        <TableCell className="p-2 w-[100px] text-[11px] font-medium">{item.fechaEmision}</TableCell>
+        <TableCell className="p-2 w-[115px] text-center"><Button size="sm" variant="ghost" className="text-[10px] h-8 px-2 font-bold border border-dashed border-primary/20 hover:border-primary/40 rounded-lg" onClick={() => handleVerifySri(item.numeroAutorizacion)}><ExternalLink className="mr-1 h-3.5 w-3.5" />WEB SRI</Button></TableCell>
+        <TableCell className="p-2 w-[90px] text-center">
+            <div className="flex items-center justify-center gap-1.5">
+                {(item.estado !== 'Solicitado' || item.emailAnularSent || item.sriAcceptanceRequested) && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button size="icon" variant="ghost" className="h-7 w-7 rounded-full hover:bg-orange-50 text-orange-600" onClick={() => handleRevertStatus(item)}>
+                        <RotateCcw className="h-3.5 w-3.5" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="top"><p>Revertir Estado</p></TooltipContent>
+                  </Tooltip>
+                )}
+                <Button size="icon" variant="ghost" className="h-7 w-7 rounded-full text-destructive/60 hover:text-destructive hover:bg-destructive/5" onClick={() => setRetentionToDelete(item)}>
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+            </div>
+        </TableCell>
+        <TableCell className="p-2"><div className="font-mono text-[9px] text-muted-foreground/60 break-all leading-tight max-w-[120px]">{item.numeroAutorizacion}</div></TableCell>
+      </TableRow>
+    ));
   };
 
   const renderArchivedTableRows = (items: RetentionRecord[]) => {
@@ -571,14 +567,19 @@ export function RetentionHistoryTable() {
             <CardDescription className="text-base font-semibold opacity-70">Sincroniza y gestiona comunicación con proveedores.</CardDescription>
           </div>
           <div className="flex items-center gap-4">
-            <Button 
-                onClick={handleSyncAll}
-                disabled={isBulkSyncing || !activeRetenciones?.length}
-                className="h-16 px-6 bg-emerald-600 hover:bg-emerald-700 text-white rounded-[1.5rem] shadow-lg shadow-emerald-500/20 font-black text-xs uppercase tracking-widest transition-all active:scale-95"
-            >
-                {isBulkSyncing ? <RefreshCw className="mr-2 h-5 w-5 animate-spin" /> : <Zap className="mr-2 h-5 w-5" />}
-                Sincronizar Todo
-            </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button 
+                    onClick={handleSyncAll}
+                    disabled={isBulkSyncing || !activeRetenciones?.length}
+                    className="h-16 px-6 bg-emerald-600 hover:bg-emerald-700 text-white rounded-[1.5rem] shadow-lg shadow-emerald-500/20 font-black text-xs uppercase tracking-widest transition-all active:scale-95"
+                >
+                    {isBulkSyncing ? <RefreshCw className="mr-2 h-5 w-5 animate-spin" /> : <Zap className="mr-2 h-5 w-5" />}
+                    Sincronizar Todo
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="top"><p>Revisar autorización en el SRI</p></TooltipContent>
+            </Tooltip>
             <div className="flex items-center gap-6 text-xs font-black text-primary bg-primary/10 border-2 border-primary/20 px-8 py-5 rounded-[1.5rem] shadow-md animate-in zoom-in duration-500 min-w-[200px]">
               <Timer className="h-10 w-10" />
               <div className="flex flex-col">
