@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useMemo, useState, useEffect } from 'react';
@@ -112,8 +113,9 @@ export function RetentionHistoryTable() {
     return { activeRetenciones: active, anulatedRetenciones: anulated, noRecibidoRetenciones: noRecibido };
   }, [retenciones]);
 
-  // Lógica del Cronómetro: Calcula el tiempo hasta que la retención más antigua necesite una nueva sincronización
   useEffect(() => {
+    if (!isMounted) return;
+    
     const interval = setInterval(() => {
       if (!activeRetenciones || activeRetenciones.length === 0) {
           setSecondsUntilSync(0);
@@ -128,7 +130,6 @@ export function RetentionHistoryTable() {
 
       activeRetenciones.forEach(r => {
           if (!r.lastSriCheck) {
-              // Si nunca se ha consultado, forzar cronómetro a 0 para que sincronice de inmediato
               oldestCheckDate = new Date(0); 
               foundCheck = true;
           } else {
@@ -150,7 +151,7 @@ export function RetentionHistoryTable() {
       setSecondsUntilSync(Math.floor(remainingMs / 1000));
     }, 1000);
     return () => clearInterval(interval);
-  }, [activeRetenciones]);
+  }, [activeRetenciones, isMounted]);
 
   const formatCountdown = (seconds: number) => {
     if (seconds === 0 && (!activeRetenciones || activeRetenciones.length === 0)) return "00:00:00";
@@ -160,14 +161,12 @@ export function RetentionHistoryTable() {
     return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   };
 
-  // Sincronización Automática en Lotes de 5
   useEffect(() => {
-    if (!activeRetenciones || activeRetenciones.length === 0 || !user?.uid || !firestore) return;
+    if (!isMounted || !activeRetenciones || activeRetenciones.length === 0 || !user?.uid || !firestore) return;
     
     const ONE_HOUR_MS = 60 * 60 * 1000;
     const now = new Date();
     
-    // Identificar retenciones "vencidas" (más de 1 hora sin consulta)
     const staleRetentions = activeRetenciones.filter(r => {
       if (!r.lastSriCheck) return true;
       const lastCheck = (r.lastSriCheck as any).toDate ? (r.lastSriCheck as any).toDate() : new Date(r.lastSriCheck as any);
@@ -175,7 +174,6 @@ export function RetentionHistoryTable() {
     });
 
     if (staleRetentions.length > 0) {
-      // Ordenar por las más antiguas y tomar las primeras 5
       const batchToUpdate = staleRetentions
         .sort((a, b) => {
           const dateA = (a.lastSriCheck as any)?.toDate?.() || new Date(a.lastSriCheck as any || 0);
@@ -185,15 +183,13 @@ export function RetentionHistoryTable() {
         .slice(0, 5);
 
       const processSyncBatch = async () => {
-        // Enviar peticiones concurrentes a la API
         await Promise.all(batchToUpdate.map(item => handleCheckSriStatus(item, true)));
       };
 
-      // Pequeño retardo de cortesía antes de iniciar el lote
       const timer = setTimeout(processSyncBatch, 3000);
       return () => clearTimeout(timer);
     }
-  }, [activeRetenciones, user?.uid, firestore]);
+  }, [activeRetenciones, user?.uid, firestore, isMounted]);
 
   const selectedCount = Object.keys(selectedRetentions).length;
 
@@ -448,7 +444,7 @@ export function RetentionHistoryTable() {
           <TableCell className="p-2 w-[140px] text-center"><StatusSelector retention={item} /></TableCell>
           <TableCell className="p-2 w-[120px] text-[11px] font-medium text-muted-foreground">{formatDate(item.createdAt)}</TableCell>
           <TableCell className="p-2 w-[100px] text-[11px] font-medium">{item.fechaEmision}</TableCell>
-          <TableCell className="p-2 w-[110px] text-center"><Button size="sm" variant="ghost" className="text-[10px] h-8 px-2 font-bold border border-dashed border-primary/20 hover:border-primary/40 rounded-lg" onClick={() => handleVerifySri(item.numeroAutorizacion)}><ExternalLink className="mr-1 h-3.5 w-3.5" />WEB SRI</Button></TableCell>
+          <TableCell className="p-2 w-[115px] text-center"><Button size="sm" variant="ghost" className="text-[10px] h-8 px-2 font-bold border border-dashed border-primary/20 hover:border-primary/40 rounded-lg" onClick={() => handleVerifySri(item.numeroAutorizacion)}><ExternalLink className="mr-1 h-3.5 w-3.5" />WEB SRI</Button></TableCell>
           <TableCell className="p-2 w-[90px] text-center">
               <div className="flex items-center justify-center gap-1.5">
                   {(item.estado !== 'Solicitado' || item.emailAnularSent || item.sriAcceptanceRequested) && (
@@ -527,7 +523,7 @@ export function RetentionHistoryTable() {
             <Timer className="h-9 w-9" />
             <div className="flex flex-col">
               <span className="text-[11px] uppercase tracking-widest opacity-60">Sincronizando con SRI en:</span>
-              <span className="text-3xl font-mono leading-none mt-1.5">{isMounted ? formatCountdown(secondsUntilSync) : '--:--:--'}</span>
+              <span className="text-3xl font-mono leading-none mt-1.5">{isMounted ? formatCountdown(secondsUntilSync) : '00:00:00'}</span>
             </div>
           </div>
         </div>
@@ -551,7 +547,7 @@ export function RetentionHistoryTable() {
           <Table className="min-w-[1000px]">
             <TableHeader className="bg-muted/50 border-b">
               <TableRow className="hover:bg-transparent">
-                <TableHead className="w-[45px] p-2 text-center"><Checkbox checked={selectedCount > 0 && selectedCount === activeRetenciones.length} onCheckedChange={(value) => handleSelectAll(!!value)} className="rounded" /></TableHead>
+                <TableHead className="w-[45px] p-2 text-center"><Checkbox checked={isMounted && selectedCount > 0 && selectedCount === activeRetenciones.length} onCheckedChange={(value) => handleSelectAll(!!value)} className="rounded" /></TableHead>
                 <TableHead className="p-2 w-[125px] font-black text-[10px] uppercase tracking-widest px-4">Acciones</TableHead>
                 <TableHead className="p-2 w-[160px] font-black text-[10px] uppercase tracking-widest">Retención</TableHead>
                 <TableHead className="p-2 w-[150px] font-black text-[10px] uppercase tracking-widest">Proveedor</TableHead>
@@ -567,13 +563,13 @@ export function RetentionHistoryTable() {
               </TableRow>
             </TableHeader>
             <TableBody className="bg-background/20 backdrop-blur-sm">
-              {loading ? Array.from({ length: 4 }).map((_, i) => <TableRow key={i}><TableCell colSpan={13}><Skeleton className="h-14 w-full my-1 rounded-xl" /></TableCell></TableRow>) : renderTableRows(activeRetenciones)}
+              {loading || !isMounted ? Array.from({ length: 4 }).map((_, i) => <TableRow key={i}><TableCell colSpan={13}><Skeleton className="h-14 w-full my-1 rounded-xl" /></TableCell></TableRow>) : renderTableRows(activeRetenciones)}
             </TableBody>
           </Table>
         </div>
 
         <div className="space-y-4">
-          {noRecibidoRetenciones.length > 0 && (
+          {isMounted && noRecibidoRetenciones.length > 0 && (
             <Accordion type="single" collapsible className="w-full">
               <AccordionItem value="no-recibidas" className="border rounded-2xl px-4 bg-rose-500/[0.02] border-rose-500/10 hover:border-rose-500/20 transition-all">
                 <AccordionTrigger className="hover:no-underline py-4">
@@ -595,7 +591,7 @@ export function RetentionHistoryTable() {
             </Accordion>
           )}
 
-          {anulatedRetenciones.length > 0 && (
+          {isMounted && anulatedRetenciones.length > 0 && (
             <Accordion type="single" collapsible className="w-full">
               <AccordionItem value="anuladas" className="border rounded-2xl px-4 bg-emerald-500/[0.02] border-emerald-500/10 hover:border-emerald-500/20 transition-all">
                 <AccordionTrigger className="hover:no-underline py-4">
