@@ -40,7 +40,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
-import { ExternalLink, FileWarning, Archive, RotateCcw, Trash2, Mail, Send, Copy, Check, FileX, RefreshCw, Clock, Timer } from 'lucide-react';
+import { ExternalLink, FileWarning, Archive, RotateCcw, Trash2, Mail, Send, Copy, Check, FileX, RefreshCw, Clock, Timer, CheckCircle2 } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { RetentionRecord, RetentionStatus } from '@/lib/types';
@@ -123,7 +123,6 @@ export function RetentionHistoryTable() {
       const ONE_HOUR_MS = 60 * 60 * 1000;
       const now = new Date();
       
-      // Buscar el check más antiguo de la lista activa
       let oldestCheckDate = now;
       activeRetenciones.forEach(r => {
           if (!r.lastSriCheck) {
@@ -148,7 +147,7 @@ export function RetentionHistoryTable() {
     return `${h}h ${m}m ${s}s`;
   };
 
-  // Sincronización automática cada 1 hora (detecta obsoletos)
+  // Sincronización automática cada 1 hora
   useEffect(() => {
     if (!activeRetenciones || activeRetenciones.length === 0 || !user?.uid || !firestore) return;
     const ONE_HOUR_MS = 60 * 60 * 1000;
@@ -161,7 +160,6 @@ export function RetentionHistoryTable() {
     });
 
     if (staleRetentions.length > 0) {
-      // Ordenar por antigüedad para procesar el más viejo primero
       staleRetentions.sort((a, b) => {
           const dateA = (a.lastSriCheck as any)?.toDate?.() || new Date(a.lastSriCheck as any || 0);
           const dateB = (b.lastSriCheck as any)?.toDate?.() || new Date(b.lastSriCheck as any || 0);
@@ -172,7 +170,7 @@ export function RetentionHistoryTable() {
         const itemToUpdate = staleRetentions[0];
         await handleCheckSriStatus(itemToUpdate, true);
       };
-      const timer = setTimeout(processNextStale, 5000); // Pequeño delay para no saturar
+      const timer = setTimeout(processNextStale, 5000);
       return () => clearTimeout(timer);
     }
   }, [activeRetenciones, user?.uid, firestore]);
@@ -207,13 +205,7 @@ export function RetentionHistoryTable() {
     if (!firestore || !user?.uid) return;
     const retentionRef = doc(firestore, `users/${user.uid}/retenciones`, retention.id);
     const updateData: any = {};
-    
-    // Si estaba en solicitado, pasar a pendiente de anular automáticamente
-    if (retention.estado === 'Solicitado') {
-      updateData.estado = 'Pendiente Anular';
-    }
-    
-    // Marcar qué acción se realizó específicamente
+    if (retention.estado === 'Solicitado') updateData.estado = 'Pendiente Anular';
     if (action === 'email') updateData.emailAnularSent = true;
     if (action === 'acceptance') updateData.sriAcceptanceRequested = true;
 
@@ -357,19 +349,19 @@ export function RetentionHistoryTable() {
     if (!estado) return "text-muted-foreground";
     const status = estado.toUpperCase();
     if (status === "AUTORIZADO") return "text-foreground";
-    if (status === "POR PROCESAR" || status === "RECIBIDO" || status.includes("PENDIENTE")) return "text-orange-500";
+    if (status === "POR PROCESAR" || status === "RECIBIDO" || status.includes("PENDIENTE")) return "text-orange-600";
     if (status === "ANULADO" || status === "CANCELADO") return "text-emerald-600";
-    if (status.includes("RECHAZADO") || status.includes("ERROR") || status.includes("NO AUTORIZADO")) return "text-destructive";
+    if (status.includes("RECHAZADO") || status.includes("ERROR") || status.includes("NO AUTORIZADO")) return "text-destructive font-bold";
     return "text-foreground";
   };
 
   const renderTableRows = (items: RetentionRecord[]) => {
-    if (items.length === 0) return <TableRow><TableCell colSpan={13} className="h-24 text-center">No hay retenciones activas.</TableCell></TableRow>;
+    if (items.length === 0) return <TableRow><TableCell colSpan={13} className="h-48 text-center text-muted-foreground italic">No hay retenciones activas para mostrar.</TableCell></TableRow>;
     return items.map((item: RetentionRecord) => {
       return (
-        <TableRow key={item.id} data-state={selectedRetentions[item.id] ? 'selected' : ''}>
-          <TableCell className="p-2"><Checkbox checked={!!selectedRetentions[item.id]} onCheckedChange={(value) => handleSelectRetention(item, !!value)} /></TableCell>
-          <TableCell className="p-2">
+        <TableRow key={item.id} className={cn("transition-colors", selectedRetentions[item.id] ? "bg-primary/[0.03]" : "hover:bg-muted/30")}>
+          <TableCell className="p-3"><Checkbox checked={!!selectedRetentions[item.id]} onCheckedChange={(value) => handleSelectRetention(item, !!value)} className="rounded" /></TableCell>
+          <TableCell className="p-3">
               <div className="flex items-center gap-2">
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -378,9 +370,9 @@ export function RetentionHistoryTable() {
                         size="icon" 
                         onClick={() => handleShareForVoiding(item)} 
                         disabled={selectedCount > 0}
-                        className={cn("h-10 w-10", item.emailAnularSent && "opacity-40 grayscale")}
+                        className={cn("h-10 w-10 rounded-xl transition-all", item.emailAnularSent ? "opacity-30 scale-95" : "hover:bg-blue-50")}
                       >
-                        <Mail className={cn("h-6 w-6", !item.emailAnularSent ? "text-blue-600" : "text-muted-foreground")} />
+                        <Mail className={cn("h-6 w-6", !item.emailAnularSent ? "text-blue-600" : "text-slate-400")} />
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent><p>Email para Anular</p></TooltipContent>
@@ -392,156 +384,170 @@ export function RetentionHistoryTable() {
                         size="icon" 
                         onClick={() => handleRequestSriAcceptance(item)} 
                         disabled={selectedCount > 0}
-                        className={cn("h-10 w-10", item.sriAcceptanceRequested && "opacity-40 grayscale")}
+                        className={cn("h-10 w-10 rounded-xl transition-all", item.sriAcceptanceRequested ? "opacity-30 scale-95" : "hover:bg-violet-50")}
                       >
-                        <Send className={cn("h-6 w-6", !item.sriAcceptanceRequested ? "text-violet-700" : "text-muted-foreground")} />
+                        <Send className={cn("h-6 w-6", !item.sriAcceptanceRequested ? "text-violet-700" : "text-slate-400")} />
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent><p>Solicitar Aceptación SRI</p></TooltipContent>
                   </Tooltip>
-                  <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-10 w-10" onClick={() => handleCopy(item)}><Check className={cn("h-4 w-4", copiedId === item.id ? "text-green-500" : "opacity-0")} /><Copy className={cn("h-4 w-4 absolute", copiedId === item.id && "opacity-0")} /></Button></TooltipTrigger><TooltipContent><p>Copiar Datos</p></TooltipContent></Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl" onClick={() => handleCopy(item)}>
+                            {copiedId === item.id ? <CheckCircle2 className="h-5 w-5 text-emerald-500" /> : <Copy className="h-4 w-4 text-muted-foreground" />}
+                        </Button>
+                    </TooltipTrigger>
+                    <TooltipContent><p>Copiar Datos</p></TooltipContent>
+                  </Tooltip>
               </div>
           </TableCell>
-          <TableCell className="font-mono p-2">{item.numeroRetencion}</TableCell>
-          <TableCell className="font-medium p-2 w-[250px] truncate">{item.razonSocialProveedor}</TableCell>
-          <TableCell className="p-2 w-[100px]">{item.numeroFactura}</TableCell>
-          <TableCell className="font-mono text-right p-2 w-[120px]">{item.valorRetencion}</TableCell>
-          <TableCell className="p-2 w-[240px]">
-            <div className="flex flex-col items-center justify-center gap-1 text-center">
-              <div className={cn("text-lg font-bold uppercase tracking-tight leading-none", getSriStatusColor(item.sriEstado))}>
+          <TableCell className="font-mono font-bold p-3 text-sm">{item.numeroRetencion}</TableCell>
+          <TableCell className="font-semibold p-3 w-[250px]"><div className="truncate">{item.razonSocialProveedor}</div></TableCell>
+          <TableCell className="p-3 w-[100px] font-medium text-muted-foreground">{item.numeroFactura}</TableCell>
+          <TableCell className="font-mono font-bold text-right p-3 w-[120px] text-primary">{item.valorRetencion}</TableCell>
+          <TableCell className="p-3 w-[240px]">
+            <div className="flex flex-col items-center justify-center gap-1.5 py-1 px-3 bg-muted/20 rounded-2xl border border-border/40">
+              <div className={cn("text-xs font-black uppercase tracking-widest leading-none", getSriStatusColor(item.sriEstado))}>
                 {item.sriEstado || "NO CONSULTADO"}
               </div>
-              <div className={cn("text-[10px] flex items-center justify-center gap-1 font-medium", getSriStatusColor(item.sriEstado))}>
+              <div className={cn("text-[9px] flex items-center justify-center gap-1 font-bold opacity-70", getSriStatusColor(item.sriEstado))}>
                 <Clock className="h-2.5 w-2.5" />
-                {!isMounted ? '...' : (item.lastSriCheck ? formatRelativeTime(item.lastSriCheck) : 'Nunca verificado')}
+                {isMounted ? (item.lastSriCheck ? formatRelativeTime(item.lastSriCheck) : 'Sin fecha') : '...'}
               </div>
-              <Button size="sm" variant="outline" className="h-6 text-[9px] px-2 mt-1 w-fit" onClick={() => handleCheckSriStatus(item)} disabled={checkingSriId === item.id}>
+              <Button size="sm" variant="outline" className="h-6 text-[9px] font-bold px-2 rounded-lg bg-background border-border/60 hover:border-primary/50 transition-all" onClick={() => handleCheckSriStatus(item)} disabled={checkingSriId === item.id}>
                 {checkingSriId === item.id ? <RefreshCw className="h-2.5 w-2.5 animate-spin" /> : <RefreshCw className="h-2.5 w-2.5 mr-1" />}
-                ACTUALIZAR SRI
+                SINCRONIZAR
               </Button>
             </div>
           </TableCell>
-          <TableCell className="p-2 w-[150px] text-center"><StatusSelector retention={item} /></TableCell>
-          <TableCell className="p-2 w-[130px] text-xs text-muted-foreground">{formatDate(item.createdAt)}</TableCell>
-          <TableCell className="p-2 w-[100px] text-xs">{item.fechaEmision}</TableCell>
-          <TableCell className="p-2 w-[120px]"><Button size="sm" variant="outline" className="text-xs h-7" onClick={() => handleVerifySri(item.numeroAutorizacion)}><ExternalLink className="mr-1 h-3 w-3" />VERIFICAR</Button></TableCell>
-          <TableCell className="p-2 w-[80px] text-center">
+          <TableCell className="p-3 w-[150px] text-center"><StatusSelector retention={item} /></TableCell>
+          <TableCell className="p-3 w-[130px] text-[11px] font-medium text-muted-foreground">{formatDate(item.createdAt)}</TableCell>
+          <TableCell className="p-3 w-[100px] text-[11px] font-medium">{item.fechaEmision}</TableCell>
+          <TableCell className="p-3 w-[120px]"><Button size="sm" variant="ghost" className="text-[10px] h-8 font-bold border-2 border-dashed border-primary/20 hover:border-primary/40 rounded-xl" onClick={() => handleVerifySri(item.numeroAutorizacion)}><ExternalLink className="mr-1.5 h-3 w-3" />WEB SRI</Button></TableCell>
+          <TableCell className="p-3 w-[80px] text-center">
               <div className="flex items-center justify-center gap-1">
                   {(item.estado !== 'Solicitado' || item.emailAnularSent || item.sriAcceptanceRequested) && (
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => handleRevertStatus(item)}>
-                          <RotateCcw className="h-3.5 w-3.5" />
+                        <Button size="icon" variant="ghost" className="h-8 w-8 rounded-full hover:bg-orange-50 text-orange-600" onClick={() => handleRevertStatus(item)}>
+                          <RotateCcw className="h-4 w-4" />
                         </Button>
                       </TooltipTrigger>
                       <TooltipContent><p>Revertir Estado</p></TooltipContent>
                     </Tooltip>
                   )}
-                  <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => setRetentionToDelete(item)}>
-                    <Trash2 className="h-3.5 w-3.5" />
+                  <Button size="icon" variant="ghost" className="h-8 w-8 rounded-full text-destructive/60 hover:text-destructive hover:bg-destructive/5" onClick={() => setRetentionToDelete(item)}>
+                    <Trash2 className="h-4 w-4" />
                   </Button>
               </div>
           </TableCell>
-          <TableCell className="p-2"><span className="font-mono text-[9px] text-muted-foreground break-all">{item.numeroAutorizacion}</span></TableCell>
+          <TableCell className="p-3"><div className="font-mono text-[9px] text-muted-foreground/60 break-all leading-tight">{item.numeroAutorizacion}</div></TableCell>
         </TableRow>
       );
     });
   };
 
   const renderArchivedTableRows = (items: RetentionRecord[]) => {
-    if (items.length === 0) return <TableRow><TableCell colSpan={13} className="h-24 text-center">No hay registros en esta sección.</TableCell></TableRow>;
+    if (items.length === 0) return <TableRow><TableCell colSpan={13} className="h-24 text-center italic text-muted-foreground">Nada que mostrar aquí.</TableCell></TableRow>;
     return items.map((item: RetentionRecord) => (
-      <TableRow key={item.id}>
+      <TableRow key={item.id} className="opacity-70 hover:opacity-100 transition-opacity">
          <TableCell className="p-2">
            <div className="flex items-center gap-1">
-             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleShareForVoiding(item)}><Mail className="h-3.5 w-3.5" /></Button>
-             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleRequestSriAcceptance(item)}><Send className="h-3.5 w-3.5" /></Button>
+             <Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg" onClick={() => handleShareForVoiding(item)}><Mail className="h-3.5 w-3.5" /></Button>
+             <Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg" onClick={() => handleRequestSriAcceptance(item)}><Send className="h-3.5 w-3.5" /></Button>
            </div>
          </TableCell>
-        <TableCell className="font-mono p-2 text-xs">{item.numeroRetencion}</TableCell>
-        <TableCell className="font-medium p-2 text-xs truncate max-w-[150px]">{item.razonSocialProveedor}</TableCell>
-        <TableCell className="p-2 text-xs">{item.numeroFactura}</TableCell>
-        <TableCell className="font-mono text-right p-2 text-xs">{item.valorRetencion}</TableCell>
+        <TableCell className="font-mono p-2 text-[11px] font-bold">{item.numeroRetencion}</TableCell>
+        <TableCell className="font-semibold p-2 text-[11px] truncate max-w-[150px]">{item.razonSocialProveedor}</TableCell>
+        <TableCell className="p-2 text-[11px] text-muted-foreground">{item.numeroFactura}</TableCell>
+        <TableCell className="font-mono font-bold text-right p-2 text-[11px]">{item.valorRetencion}</TableCell>
         <TableCell className="p-2 w-[180px]">
-          <div className={cn("text-xs font-bold uppercase text-center", getSriStatusColor(item.sriEstado))}>
+          <div className={cn("text-[10px] font-black uppercase text-center py-0.5 px-2 rounded-full bg-muted/40", getSriStatusColor(item.sriEstado))}>
             {item.sriEstado || "N/A"}
           </div>
         </TableCell>
         <TableCell className="p-2 text-center"><StatusBadge status={item.estado} /></TableCell>
-        <TableCell className="p-2 text-[10px] text-muted-foreground">{formatDate(item.createdAt)}</TableCell>
-        <TableCell className="p-2 text-[10px]">{item.fechaEmision}</TableCell>
+        <TableCell className="p-2 text-[10px] font-medium text-muted-foreground">{formatDate(item.createdAt)}</TableCell>
+        <TableCell className="p-2 text-[10px] font-medium">{item.fechaEmision}</TableCell>
         <TableCell className="p-2">
-            <Button size="sm" variant="outline" className="text-[10px] h-6 px-1" onClick={() => handleVerifySri(item.numeroAutorizacion)}>
-                VERIFICAR
+            <Button size="sm" variant="outline" className="text-[9px] h-6 px-2 font-bold rounded-lg" onClick={() => handleVerifySri(item.numeroAutorizacion)}>
+                SRI
             </Button>
         </TableCell>
         <TableCell className="p-2 text-center">
             <div className="flex items-center justify-center gap-1">
-                <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => handleRevertStatus(item)}>
-                    <RotateCcw className="h-3 w-3" />
+                <Button size="icon" variant="ghost" className="h-7 w-7 rounded-full" onClick={() => handleRevertStatus(item)}>
+                    <RotateCcw className="h-3.5 w-3.5" />
                 </Button>
-                <Button size="icon" variant="ghost" className="h-6 w-6 text-destructive" onClick={() => setRetentionToDelete(item)}>
-                    <Trash2 className="h-3 w-3" />
+                <Button size="icon" variant="ghost" className="h-7 w-7 rounded-full text-destructive" onClick={() => setRetentionToDelete(item)}>
+                    <Trash2 className="h-3.5 w-3.5" />
                 </Button>
             </div>
         </TableCell>
-        <TableCell className="p-2"><span className="font-mono text-[9px] text-muted-foreground break-all">{item.numeroAutorizacion}</span></TableCell>
+        <TableCell className="p-2"><div className="font-mono text-[8px] text-muted-foreground/50 break-all">{item.numeroAutorizacion}</div></TableCell>
       </TableRow>
     ));
   }
 
   return (
     <TooltipProvider>
-    <Card className="w-full relative overflow-hidden">
-      <div className="absolute top-4 right-6 flex items-center gap-2 text-[11px] font-mono text-muted-foreground bg-muted/30 px-2 py-1 rounded-full">
-        <Timer className="h-3 w-3" />
-        Sincro SRI en: {isMounted ? formatCountdown(secondsUntilSync) : '--:--:--'}
+    <Card className="w-full relative overflow-hidden border-2 shadow-2xl rounded-3xl bg-card/40 backdrop-blur-sm">
+      <div className="absolute top-5 right-8 flex items-center gap-2 text-[10px] font-black text-primary/70 bg-primary/10 border border-primary/20 px-3 py-1.5 rounded-2xl shadow-sm">
+        <Timer className="h-3.5 w-3.5" />
+        PRÓXIMA SINCRO: {isMounted ? formatCountdown(secondsUntilSync) : '--:--:--'}
       </div>
-      <CardHeader className="pb-4">
-        <CardTitle>Seguimiento de Anulaciones</CardTitle>
-        <CardDescription>Sincroniza el estado del SRI y gestiona la aceptación de anulación por parte del proveedor.</CardDescription>
+      <CardHeader className="pb-6 pt-8 border-b">
+        <CardTitle className="text-2xl font-bold tracking-tight">Seguimiento de Anulaciones</CardTitle>
+        <CardDescription className="text-base font-medium">Sincroniza el estado del SRI y gestiona la comunicación con proveedores.</CardDescription>
       </CardHeader>
-      <CardContent>
-        {error && <Alert variant="destructive" className="mb-4"><FileWarning className="h-4 w-4" /><AlertTitle>Error</AlertTitle><AlertDescription>{error.message}</AlertDescription></Alert>}
-        <div className="flex items-center gap-4 mb-4">
-            <Button onClick={handleBulkShareForVoiding} disabled={selectedCount === 0} size="sm"><Mail className="mr-2 h-4 w-4" />Email Anular ({selectedCount})</Button>
-            <Button onClick={handleBulkRequestSriAcceptance} disabled={selectedCount === 0} size="sm"><Send className="mr-2 h-4 w-4" />Aceptación SRI ({selectedCount})</Button>
+      <CardContent className="pt-8">
+        {error && <Alert variant="destructive" className="mb-6 rounded-2xl border-2"><FileWarning className="h-4 w-4" /><AlertTitle className="font-bold">Error de Red</AlertTitle><AlertDescription>{error.message}</AlertDescription></Alert>}
+        
+        <div className={cn(
+          "flex items-center gap-3 mb-6 p-4 bg-muted/30 border border-border/50 rounded-2xl transition-all",
+          selectedCount > 0 ? "translate-y-0 opacity-100" : "-translate-y-2 opacity-0 pointer-events-none"
+        )}>
+            <div className="text-xs font-bold text-muted-foreground uppercase tracking-widest px-2">Gestión en Masa ({selectedCount}):</div>
+            <Button onClick={handleBulkShareForVoiding} size="sm" className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-md transition-all active:scale-95"><Mail className="mr-2 h-4 w-4" />Email Anular</Button>
+            <Button onClick={handleBulkRequestSriAcceptance} size="sm" className="bg-violet-700 hover:bg-violet-800 text-white rounded-xl shadow-md transition-all active:scale-95"><Send className="mr-2 h-4 w-4" />Solicitar Aceptación</Button>
+            <Button onClick={() => setSelectedRetentions({})} variant="ghost" size="sm" className="text-xs font-bold rounded-xl ml-auto">Limpiar Selección</Button>
         </div>
-        <div className="border rounded-lg mb-6 overflow-hidden">
+
+        <div className="border rounded-2xl mb-8 overflow-hidden shadow-sm bg-background/60">
           <Table>
-            <TableHeader className="bg-muted/50">
-              <TableRow>
-                <TableHead className="w-[40px] p-2"><Checkbox checked={selectedCount > 0 && selectedCount === activeRetenciones.length} onCheckedChange={(value) => handleSelectAll(!!value)} /></TableHead>
-                <TableHead className="p-2 w-[120px]">Gestión</TableHead>
-                <TableHead className="p-2 w-[150px]">Nro. Retención</TableHead>
-                <TableHead className="p-2 w-[250px]">Proveedor</TableHead>
-                <TableHead className="p-2 w-[100px]">Factura</TableHead>
-                <TableHead className="text-right p-2 w-[120px]">Valor Reten.</TableHead>
-                <TableHead className="p-2 w-[240px] text-center">Estado SRI & Sincro</TableHead>
-                <TableHead className="p-2 w-[150px] text-center">Estado App</TableHead>
-                <TableHead className="p-2 w-[130px]">F. Registro</TableHead>
-                <TableHead className="p-2 w-[100px]">F. Emisión</TableHead>
-                <TableHead className="p-2 w-[120px]">SRI En Línea</TableHead>
-                <TableHead className="text-center p-2 w-[80px]">Ops</TableHead>
-                <TableHead className="p-2">Autorización</TableHead>
+            <TableHeader className="bg-muted/50 border-b-2">
+              <TableRow className="hover:bg-transparent">
+                <TableHead className="w-[40px] p-3"><Checkbox checked={selectedCount > 0 && selectedCount === activeRetenciones.length} onCheckedChange={(value) => handleSelectAll(!!value)} className="rounded" /></TableHead>
+                <TableHead className="p-3 w-[120px] font-bold text-[10px] uppercase tracking-widest">Acciones</TableHead>
+                <TableHead className="p-3 w-[150px] font-bold text-[10px] uppercase tracking-widest">Retención</TableHead>
+                <TableHead className="p-3 w-[250px] font-bold text-[10px] uppercase tracking-widest">Proveedor</TableHead>
+                <TableHead className="p-3 w-[100px] font-bold text-[10px] uppercase tracking-widest">Factura</TableHead>
+                <TableHead className="text-right p-3 w-[120px] font-bold text-[10px] uppercase tracking-widest">Valor</TableHead>
+                <TableHead className="p-3 w-[240px] text-center font-bold text-[10px] uppercase tracking-widest">SRI Status</TableHead>
+                <TableHead className="p-3 w-[150px] text-center font-bold text-[10px] uppercase tracking-widest">App Status</TableHead>
+                <TableHead className="p-3 w-[130px] font-bold text-[10px] uppercase tracking-widest">Registro</TableHead>
+                <TableHead className="p-3 w-[100px] font-bold text-[10px] uppercase tracking-widest">Emisión</TableHead>
+                <TableHead className="p-3 w-[120px] font-bold text-[10px] uppercase tracking-widest">Consultas</TableHead>
+                <TableHead className="text-center p-3 w-[80px] font-bold text-[10px] uppercase tracking-widest">Ops</TableHead>
+                <TableHead className="p-3 font-bold text-[10px] uppercase tracking-widest">Autorización</TableHead>
               </TableRow>
             </TableHeader>
-            <TableBody>{loading ? Array.from({ length: 3 }).map((_, i) => <TableRow key={i}><TableCell colSpan={13}><Skeleton className="h-10 w-full" /></TableCell></TableRow>) : renderTableRows(activeRetenciones)}</TableBody>
+            <TableBody className="bg-background/20 backdrop-blur-sm">{loading ? Array.from({ length: 4 }).map((_, i) => <TableRow key={i}><TableCell colSpan={13}><Skeleton className="h-12 w-full my-1 rounded-xl" /></TableCell></TableRow>) : renderTableRows(activeRetenciones)}</TableBody>
           </Table>
         </div>
 
-        <div className="space-y-3">
+        <div className="space-y-4">
           {noRecibidoRetenciones.length > 0 && (
             <Accordion type="single" collapsible className="w-full">
-              <AccordionItem value="no-recibidas" className="border rounded-lg px-4 bg-muted/20">
-                <AccordionTrigger className="hover:no-underline">
-                  <div className="flex items-center gap-2">
-                    <FileX className="h-4 w-4 text-destructive" />
-                    <span>Retenciones No Recibidas ({noRecibidoRetenciones.length})</span>
+              <AccordionItem value="no-recibidas" className="border-2 rounded-2xl px-6 bg-rose-500/[0.03] border-rose-500/10 hover:border-rose-500/20 transition-all">
+                <AccordionTrigger className="hover:no-underline py-5">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-rose-500/10 rounded-lg"><FileX className="h-5 w-5 text-rose-600" /></div>
+                    <span className="font-bold text-rose-950 uppercase tracking-tight">Retenciones No Recibidas ({noRecibidoRetenciones.length})</span>
                   </div>
                 </AccordionTrigger>
-                <AccordionContent>
-                  <div className="border rounded-lg mt-2 bg-background">
+                <AccordionContent className="pb-6">
+                  <div className="border rounded-xl bg-background/80 shadow-inner overflow-hidden">
                     <Table>
                       <TableBody>
                         {renderArchivedTableRows(noRecibidoRetenciones)}
@@ -555,15 +561,15 @@ export function RetentionHistoryTable() {
 
           {anulatedRetenciones.length > 0 && (
             <Accordion type="single" collapsible className="w-full">
-              <AccordionItem value="anuladas" className="border rounded-lg px-4 bg-muted/20">
-                <AccordionTrigger className="hover:no-underline">
-                  <div className="flex items-center gap-2">
-                    <Archive className="h-4 w-4 text-muted-foreground" />
-                    <span>Retenciones Anuladas ({anulatedRetenciones.length})</span>
+              <AccordionItem value="anuladas" className="border-2 rounded-2xl px-6 bg-emerald-500/[0.03] border-emerald-500/10 hover:border-emerald-500/20 transition-all">
+                <AccordionTrigger className="hover:no-underline py-5">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-emerald-500/10 rounded-lg"><Archive className="h-5 w-5 text-emerald-600" /></div>
+                    <span className="font-bold text-emerald-950 uppercase tracking-tight">Retenciones Anuladas y Archivadas ({anulatedRetenciones.length})</span>
                   </div>
                 </AccordionTrigger>
-                <AccordionContent>
-                  <div className="border rounded-lg mt-2 bg-background">
+                <AccordionContent className="pb-6">
+                  <div className="border rounded-xl bg-background/80 shadow-inner overflow-hidden">
                     <Table>
                       <TableBody>
                         {renderArchivedTableRows(anulatedRetenciones)}
@@ -579,17 +585,17 @@ export function RetentionHistoryTable() {
     </Card>
     
     <AlertDialog open={!!retentionToDelete} onOpenChange={(open) => !open && setRetentionToDelete(null)}>
-        <AlertDialogContent>
+        <AlertDialogContent className="rounded-3xl border-2">
             <AlertDialogHeader>
-                <AlertDialogTitle>¿Eliminar retención?</AlertDialogTitle>
-                <AlertDialogDescription>
-                    La retención <strong>{retentionToDelete?.numeroRetencion}</strong> de <strong>{retentionToDelete?.razonSocialProveedor}</strong> será eliminada permanentemente del historial.
+                <AlertDialogTitle className="text-xl font-bold">¿Eliminar registro permanentemente?</AlertDialogTitle>
+                <AlertDialogDescription className="text-base">
+                    La retención <span className="font-mono font-bold text-primary">{retentionToDelete?.numeroRetencion}</span> de <span className="font-bold">{retentionToDelete?.razonSocialProveedor}</span> será eliminada de tu historial local de forma irreversible.
                 </AlertDialogDescription>
             </AlertDialogHeader>
-            <AlertDialogFooter>
-                <AlertDialogCancel onClick={() => setRetentionToDelete(null)}>Cancelar</AlertDialogCancel>
-                <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                    Eliminar
+            <AlertDialogFooter className="gap-2">
+                <AlertDialogCancel onClick={() => setRetentionToDelete(null)} className="rounded-xl font-bold">Cancelar</AlertDialogCancel>
+                <AlertDialogAction onClick={handleDelete} className="bg-destructive text-white hover:bg-destructive/90 rounded-xl font-bold px-6">
+                    Eliminar ahora
                 </AlertDialogAction>
             </AlertDialogFooter>
         </AlertDialogContent>

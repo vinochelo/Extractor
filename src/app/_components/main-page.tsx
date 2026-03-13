@@ -18,6 +18,7 @@ import { EmailImporter } from './email-importer';
 import { SriManualChecker } from './sri-manual-checker';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { consultarFacturaSRI } from '@/lib/sri-service';
+import { Sparkles, FileText, LayoutDashboard } from 'lucide-react';
 
 export function MainPage() {
   const { user, isUserLoading } = useUser();
@@ -30,11 +31,9 @@ export function MainPage() {
   const [extractedData, setExtractedData] = useState<RetentionRecord | null>(
     null
   );
-  // Inicializamos con un valor estable para evitar errores de hidratación
   const [historyKey, setHistoryKey] = useState(0);
 
   useEffect(() => {
-    // Actualizamos la clave solo en el cliente tras el montaje
     setHistoryKey(Date.now());
   }, []);
 
@@ -79,7 +78,6 @@ export function MainPage() {
       });
 
       if (result.success) {
-        // Consultar SRI inmediatamente al cargar
         let sriResult = null;
         try {
           sriResult = await consultarFacturaSRI(result.data.numeroAutorizacion);
@@ -144,46 +142,76 @@ export function MainPage() {
   }, [file, user, firestore]);
 
   return (
-    <main className="container mx-auto px-4 py-12 md:py-20">
-      <div className="text-center mb-16">
-        <h1 className="font-headline text-5xl md:text-6xl font-extrabold tracking-tight text-primary mb-4">
-          Status Retenciones
-        </h1>
-        <div className="h-1 w-24 bg-primary mx-auto mb-6 rounded-full opacity-20" />
-        <p className="max-w-2xl mx-auto text-xl text-muted-foreground font-medium">
-          Gestión inteligente de retenciones del SRI con el poder de la IA.
-        </p>
-      </div>
+    <main className="min-h-screen bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-50 via-background to-background">
+      <div className="container mx-auto px-4 py-16 md:py-24 max-w-7xl">
+        <header className="text-center mb-20 relative animate-in fade-in slide-in-from-top-10 duration-1000">
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/5 text-primary text-xs font-black uppercase tracking-[0.2em] mb-6 border border-primary/10 shadow-sm">
+            <Sparkles className="h-3 w-3" />
+            Control de Impuestos Inteligente
+          </div>
+          <h1 className="font-headline text-6xl md:text-8xl font-black tracking-tighter text-primary mb-6 filter drop-shadow-sm">
+            Status Retenciones
+          </h1>
+          <p className="max-w-2xl mx-auto text-xl text-muted-foreground/80 font-semibold tracking-tight leading-relaxed">
+            Gestiona la anulación de comprobantes electrónicos del SRI con el poder de la Inteligencia Artificial.
+          </p>
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[140%] h-[140%] bg-primary/[0.02] blur-[120px] rounded-full -z-10" />
+        </header>
 
-      <Tabs defaultValue="historial" className="space-y-12">
-        <TabsList className="grid w-full max-w-lg mx-auto grid-cols-2 p-1 bg-muted/50 rounded-xl">
-          <TabsTrigger value="historial" className="rounded-lg py-2.5 data-[state=active]:shadow-md">Historial y Carga</TabsTrigger>
-          <TabsTrigger value="herramientas" className="rounded-lg py-2.5 data-[state=active]:shadow-md">Consultas Autorizaciones</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="historial" className="space-y-16">
-          <RetentionHistoryTable key={historyKey} />
-
-          <div className="bg-card/30 p-8 rounded-3xl border border-dashed border-primary/20">
-            <PdfUploader
-              file={file}
-              onFileChange={handleFileChange}
-              onFileRemove={handleRemoveFile}
-              loading={loading || isUserLoading}
-              error={error}
-              warning={duplicateWarning}
-            />
+        <Tabs defaultValue="historial" className="space-y-16">
+          <div className="flex justify-center mb-12">
+            <TabsList className="grid w-full max-w-md grid-cols-2 h-14 p-1.5 bg-muted/40 backdrop-blur-md rounded-2xl border-2 border-border/50 shadow-xl">
+              <TabsTrigger value="historial" className="rounded-xl py-3 font-bold text-sm tracking-tight transition-all data-[state=active]:bg-background data-[state=active]:shadow-lg data-[state=active]:text-primary flex items-center gap-2">
+                <LayoutDashboard className="h-4 w-4" />
+                Historial y Carga
+              </TabsTrigger>
+              <TabsTrigger value="herramientas" className="rounded-xl py-3 font-bold text-sm tracking-tight transition-all data-[state=active]:bg-background data-[state=active]:shadow-lg data-[state=active]:text-primary flex items-center gap-2">
+                <FileText className="h-4 w-4" />
+                Consultas Autorizaciones
+              </TabsTrigger>
+            </TabsList>
           </div>
 
-          {extractedData && <ExtractionResultCard data={extractedData} />}
-          
-          <EmailImporter />
-        </TabsContent>
+          <TabsContent value="historial" className="space-y-20 animate-in fade-in zoom-in-95 duration-500">
+            <RetentionHistoryTable key={historyKey} />
 
-        <TabsContent value="herramientas" className="space-y-12">
-          <SriManualChecker />
-        </TabsContent>
-      </Tabs>
+            <section className="space-y-8">
+              <div className="text-center space-y-2">
+                <h2 className="text-3xl font-black tracking-tight">Nueva Extracción</h2>
+                <p className="text-muted-foreground font-medium">Sube el PDF de la retención para extraer sus datos automáticamente.</p>
+              </div>
+              <div className="bg-card/40 backdrop-blur-md p-10 rounded-[3rem] border-2 border-dashed border-primary/10 shadow-2xl transition-all hover:border-primary/30 group">
+                <PdfUploader
+                  file={file}
+                  onFileChange={handleFileChange}
+                  onFileRemove={handleRemoveFile}
+                  loading={loading || isUserLoading}
+                  error={error}
+                  warning={duplicateWarning}
+                />
+              </div>
+            </section>
+
+            {extractedData && (
+              <div className="animate-in fade-in slide-in-from-bottom-10 duration-700">
+                <ExtractionResultCard data={extractedData} />
+              </div>
+            )}
+            
+            <section className="pt-8 border-t border-border/50">
+               <EmailImporter />
+            </section>
+          </TabsContent>
+
+          <TabsContent value="herramientas" className="space-y-12 animate-in fade-in slide-in-from-right-10 duration-500">
+            <SriManualChecker />
+          </TabsContent>
+        </Tabs>
+        
+        <footer className="mt-32 pt-12 border-t border-border/40 text-center">
+            <p className="text-xs font-bold text-muted-foreground/60 uppercase tracking-[0.3em]">Status Retenciones &copy; {new Date().getFullYear()} • Gestión SRI Eficiente</p>
+        </footer>
+      </div>
     </main>
   );
 }
