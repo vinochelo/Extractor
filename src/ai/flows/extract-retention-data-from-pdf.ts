@@ -3,14 +3,11 @@
 /**
  * @fileOverview Extracts data from a PDF of an Ecuadorian 'retención' document.
  * 
- * Implementa rotación de llaves API para maximizar los límites de extracción gratuitos.
- *
- * - extractRetentionDataFromPDF - A function that handles the data extraction process.
- * - ExtractRetentionDataFromPDFInput - The input type for the extractRetentionDataFromPDF function.
- * - ExtractRetentionDataFromPDFOutput - The return type for the extractRetentionDataFromPDF function.
+ * Implementa rotación de llaves API con Failover: si una llave falla (por cuota),
+ * intenta automáticamente con la siguiente disponible.
  */
 
-import {ai, getRotatedAi} from '@/ai/genkit';
+import {ai, createAiInstance, getAvailableApiKeys} from '@/ai/genkit';
 import {z} from 'genkit';
 
 const ExtractRetentionDataFromPDFInputSchema = z.object({
@@ -35,16 +32,41 @@ const ExtractRetentionDataFromPDFOutputSchema = z.object({
 export type ExtractRetentionDataFromPDFOutput = z.infer<typeof ExtractRetentionDataFromPDFOutputSchema>;
 
 /**
- * Wrapper de la acción del servidor que utiliza rotación de llaves API.
+ * Procesa la extracción intentando con todas las llaves API disponibles en caso de error.
  */
 export async function extractRetentionDataFromPDF(
   input: ExtractRetentionDataFromPDFInput
 ): Promise<ExtractRetentionDataFromPDFOutput> {
-  // Obtenemos una instancia fresca de AI con una llave rotada
-  const rotatedAi = getRotatedAi();
-  
-  // Definimos y ejecutamos el prompt dinámicamente con la nueva llave
-  const dynamicPrompt = rotatedAi.definePrompt({
+  const apiKeys = getAvailableApiKeys();
+  let lastError: any = null;
+
+  // Si no hay llaves configuradas, intentamos con la instancia por defecto
+  if (apiKeys.length === 0) {
+    return executeExtraction(ai, input);
+  }
+
+  // Barajamos las llaves para no quemar siempre la primera
+  const shuffledKeys = [...apiKeys].sort(() => Math.random() - 0.5);
+
+  for (const key of shuffledKeys) {
+    try {
+      const instance = createAiInstance(key);
+      return await executeExtraction(instance, input);
+    } catch (err: any) {
+      console.warn(`Error con llave API (intentando con la siguiente):`, err.message);
+      lastError = err;
+      continue; // Salta a la siguiente llave
+    }
+  }
+
+  throw lastError || new Error("Todas las llaves API configuradas han fallado.");
+}
+
+/**
+ * Ejecuta el prompt de extracción para una instancia específica.
+ */
+async function executeExtraction(instance: any, input: ExtractRetentionDataFromPDFInput): Promise<ExtractRetentionDataFromPDFOutput> {
+  const dynamicPrompt = instance.definePrompt({
     name: 'extractRetentionDataFromPDFPrompt',
     input: {schema: ExtractRetentionDataFromPDFInputSchema},
     output: {schema: ExtractRetentionDataFromPDFOutputSchema},
@@ -66,7 +88,8 @@ export async function extractRetentionDataFromPDF(
   });
 
   const {output} = await dynamicPrompt(input);
-  return output!;
+  if (!output) throw new Error("No se pudo extraer información del PDF.");
+  return output;
 }
 
 /**

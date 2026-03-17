@@ -2,22 +2,21 @@ import {genkit} from 'genkit';
 import {googleAI} from '@genkit-ai/google-genai';
 
 /**
- * Obtiene una instancia de Genkit configurada con una llave API rotada.
- * Esto permite superar el límite de uso gratuito de una sola cuenta.
+ * Obtiene la lista de llaves API disponibles configuradas en el entorno.
  */
-export function getRotatedAi() {
-  const keys = [
+export function getAvailableApiKeys(): string[] {
+  return [
     process.env.GOOGLE_GENAI_API_KEY,
     process.env.GOOGLE_GENAI_API_KEY_2,
     process.env.GOOGLE_GENAI_API_KEY_3,
     process.env.GEMINI_API_KEY,
-  ].filter(Boolean);
+  ].filter(Boolean) as string[];
+}
 
-  // Seleccionamos una llave al azar de las disponibles
-  const apiKey = keys.length > 0 
-    ? keys[Math.floor(Math.random() * keys.length)] 
-    : undefined;
-
+/**
+ * Crea una instancia de Genkit configurada con una llave específica.
+ */
+export function createAiInstance(apiKey?: string) {
   return genkit({
     plugins: [googleAI({ apiKey })],
     model: 'googleai/gemini-2.5-flash',
@@ -25,6 +24,6 @@ export function getRotatedAi() {
 }
 
 /**
- * Instancia base de Genkit para definiciones globales.
+ * Instancia base de Genkit (usa la primera llave disponible por defecto).
  */
-export const ai = getRotatedAi();
+export const ai = createAiInstance(getAvailableApiKeys()[0]);
