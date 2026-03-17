@@ -2,13 +2,15 @@
 
 /**
  * @fileOverview Extracts data from a PDF of an Ecuadorian 'retención' document.
+ * 
+ * Implementa rotación de llaves API para maximizar los límites de extracción gratuitos.
  *
  * - extractRetentionDataFromPDF - A function that handles the data extraction process.
  * - ExtractRetentionDataFromPDFInput - The input type for the extractRetentionDataFromPDF function.
  * - ExtractRetentionDataFromPDFOutput - The return type for the extractRetentionDataFromPDF function.
  */
 
-import {ai} from '@/ai/genkit';
+import {ai, getRotatedAi} from '@/ai/genkit';
 import {z} from 'genkit';
 
 const ExtractRetentionDataFromPDFInputSchema = z.object({
@@ -32,41 +34,51 @@ const ExtractRetentionDataFromPDFOutputSchema = z.object({
 });
 export type ExtractRetentionDataFromPDFOutput = z.infer<typeof ExtractRetentionDataFromPDFOutputSchema>;
 
+/**
+ * Wrapper de la acción del servidor que utiliza rotación de llaves API.
+ */
 export async function extractRetentionDataFromPDF(
   input: ExtractRetentionDataFromPDFInput
 ): Promise<ExtractRetentionDataFromPDFOutput> {
-  return extractRetentionDataFromPDFFlow(input);
+  // Obtenemos una instancia fresca de AI con una llave rotada
+  const rotatedAi = getRotatedAi();
+  
+  // Definimos y ejecutamos el prompt dinámicamente con la nueva llave
+  const dynamicPrompt = rotatedAi.definePrompt({
+    name: 'extractRetentionDataFromPDFPrompt',
+    input: {schema: ExtractRetentionDataFromPDFInputSchema},
+    output: {schema: ExtractRetentionDataFromPDFOutputSchema},
+    prompt: `You are an expert in extracting data from Ecuadorian 'retención' documents.
+
+    Extract the following fields from the document provided as a PDF data URI:
+    - numeroRetencion
+    - numeroAutorizacion
+    - razonSocialProveedor
+    - rucProveedor
+    - emailProveedor (if available)
+    - numeroFactura
+    - fechaEmision
+    - valorRetencion
+
+    Return the extracted data in JSON format.
+
+    PDF Document: {{media url=pdfDataUri}}`,
+  });
+
+  const {output} = await dynamicPrompt(input);
+  return output!;
 }
 
-const prompt = ai.definePrompt({
-  name: 'extractRetentionDataFromPDFPrompt',
-  input: {schema: ExtractRetentionDataFromPDFInputSchema},
-  output: {schema: ExtractRetentionDataFromPDFOutputSchema},
-  prompt: `You are an expert in extracting data from Ecuadorian 'retención' documents.
-
-  Extract the following fields from the document provided as a PDF data URI:
-  - numeroRetencion
-  - numeroAutorizacion
-  - razonSocialProveedor
-  - rucProveedor
-  - emailProveedor (if available)
-  - numeroFactura
-  - fechaEmision
-  - valorRetencion
-
-  Return the extracted data in JSON format.
-
-  PDF Document: {{media url=pdfDataUri}}`,
-});
-
-const extractRetentionDataFromPDFFlow = ai.defineFlow(
+/**
+ * Definición estática del flujo para compatibilidad con Genkit UI.
+ */
+export const extractRetentionDataFromPDFFlow = ai.defineFlow(
   {
     name: 'extractRetentionDataFromPDFFlow',
     inputSchema: ExtractRetentionDataFromPDFInputSchema,
     outputSchema: ExtractRetentionDataFromPDFOutputSchema,
   },
   async input => {
-    const {output} = await prompt(input);
-    return output!;
+    return extractRetentionDataFromPDF(input);
   }
 );
