@@ -4,7 +4,7 @@
  * @fileOverview Extracts data from a PDF of an Ecuadorian 'retención' document.
  * 
  * Implementa rotación de llaves API con Failover: si una llave falla (por cuota),
- * intenta automáticamente con la siguiente disponible.
+ * intenta automáticamente con la siguiente disponible para garantizar la extracción.
  */
 
 import {ai, createAiInstance, getAvailableApiKeys} from '@/ai/genkit';
@@ -32,7 +32,7 @@ const ExtractRetentionDataFromPDFOutputSchema = z.object({
 export type ExtractRetentionDataFromPDFOutput = z.infer<typeof ExtractRetentionDataFromPDFOutputSchema>;
 
 /**
- * Procesa la extracción intentando con todas las llaves API disponibles en caso de error.
+ * Procesa la extracción intentando con todas las llaves API disponibles en caso de error de cuota.
  */
 export async function extractRetentionDataFromPDF(
   input: ExtractRetentionDataFromPDFInput
@@ -45,7 +45,7 @@ export async function extractRetentionDataFromPDF(
     return executeExtraction(ai, input);
   }
 
-  // Barajamos las llaves para no quemar siempre la primera
+  // Barajamos las llaves para distribuir la carga equitativamente
   const shuffledKeys = [...apiKeys].sort(() => Math.random() - 0.5);
 
   for (const key of shuffledKeys) {
@@ -55,7 +55,8 @@ export async function extractRetentionDataFromPDF(
     } catch (err: any) {
       console.warn(`Error con llave API (intentando con la siguiente):`, err.message);
       lastError = err;
-      continue; // Salta a la siguiente llave
+      // Si el error es de cuota o similar, continuamos con la siguiente llave
+      continue; 
     }
   }
 
@@ -63,7 +64,7 @@ export async function extractRetentionDataFromPDF(
 }
 
 /**
- * Ejecuta el prompt de extracción para una instancia específica.
+ * Ejecuta el prompt de extracción para una instancia específica de Genkit.
  */
 async function executeExtraction(instance: any, input: ExtractRetentionDataFromPDFInput): Promise<ExtractRetentionDataFromPDFOutput> {
   const dynamicPrompt = instance.definePrompt({
@@ -82,7 +83,7 @@ async function executeExtraction(instance: any, input: ExtractRetentionDataFromP
     - fechaEmision
     - valorRetencion
 
-    Return the extracted data in JSON format.
+    Return the extracted data in JSON format. Ensure all numeric strings and dates are preserved as they appear.
 
     PDF Document: {{media url=pdfDataUri}}`,
   });
