@@ -42,7 +42,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { ExternalLink, FileWarning, Archive, RotateCcw, Trash2, Mail, Send, Copy, CheckCircle2, RefreshCw, Clock, Timer, FileX, Zap } from 'lucide-react';
-import { format, formatDistanceToNow, addHours, startOfHour } from 'date-fns';
+import { format, formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { RetentionRecord, RetentionStatus } from '@/lib/types';
 import { StatusSelector } from './status-selector';
@@ -88,11 +88,12 @@ export function RetentionHistoryTable() {
   const [isBulkSyncing, setIsBulkSyncing] = useState(false);
   const [secondsUntilSync, setSecondsUntilSync] = useState(0);
   const [isMounted, setIsMounted] = useState(false);
-  const lastSyncHourRef = useRef<number | null>(null);
+  const SYNC_INTERVAL_SECONDS = 15 * 60; // 15 minutes
+  const nextSyncTimeRef = useRef<number | null>(null);
+  const initialSyncDoneRef = useRef(false);
 
   useEffect(() => {
     setIsMounted(true);
-    lastSyncHourRef.current = new Date().getHours();
   }, []);
 
   const retencionesQuery = useMemoFirebase(() => {
@@ -116,26 +117,45 @@ export function RetentionHistoryTable() {
     return { activeRetenciones: active, anulatedRetenciones: anulated, noRecibidoRetenciones: noRecibido };
   }, [retenciones]);
 
+  // On page load: trigger immediate sync, then start 15-min countdown
+  useEffect(() => {
+    if (!isMounted || !activeRetenciones || activeRetenciones.length === 0 || !user?.uid || !firestore) {
+      setSecondsUntilSync(0);
+      nextSyncTimeRef.current = null;
+      return;
+    }
+
+    // First time documents appear (page load/reload) → sync immediately
+    if (!initialSyncDoneRef.current) {
+      initialSyncDoneRef.current = true;
+      nextSyncTimeRef.current = Date.now() + SYNC_INTERVAL_SECONDS * 1000;
+      triggerBatchSync();
+      return;
+    }
+
+    // If no countdown is running yet (new doc added after initial sync)
+    if (nextSyncTimeRef.current === null) {
+      nextSyncTimeRef.current = Date.now() + SYNC_INTERVAL_SECONDS * 1000;
+    }
+  }, [activeRetenciones, isMounted, user?.uid, firestore]);
+
+  // Tick every second and fire sync when countdown reaches 0
   useEffect(() => {
     if (!isMounted) return;
-    
+
     const interval = setInterval(() => {
-      const now = new Date();
-      const currentHour = now.getHours();
-
-      if (!activeRetenciones || activeRetenciones.length === 0) {
-          setSecondsUntilSync(0);
-          lastSyncHourRef.current = currentHour;
-          return;
+      if (!activeRetenciones || activeRetenciones.length === 0 || nextSyncTimeRef.current === null) {
+        setSecondsUntilSync(0);
+        return;
       }
-      
-      const nextHour = startOfHour(addHours(now, 1));
-      const diffSeconds = Math.floor((nextHour.getTime() - now.getTime()) / 1000);
-      setSecondsUntilSync(diffSeconds);
 
-      if (lastSyncHourRef.current !== null && lastSyncHourRef.current !== currentHour) {
-          triggerBatchSync();
-          lastSyncHourRef.current = currentHour;
+      const remaining = Math.max(0, Math.floor((nextSyncTimeRef.current - Date.now()) / 1000));
+      setSecondsUntilSync(remaining);
+
+      if (remaining <= 0) {
+        // Reset countdown for the next cycle
+        nextSyncTimeRef.current = Date.now() + SYNC_INTERVAL_SECONDS * 1000;
+        triggerBatchSync();
       }
     }, 1000);
 
@@ -199,7 +219,8 @@ export function RetentionHistoryTable() {
     if (!silent) setCheckingSriId(item.id);
     
     const maxRetries = 2;
-    const retryDelays = [30000, 60000]; // 30s, 60s
+    const retryDelays = [3000, 6000]; // 3s, 6s — fast retries
+    const retentionRef = doc(firestore, `users/${user.uid}/retenciones`, item.id);
 
     let success = false;
     let attempt = 0;
@@ -207,7 +228,6 @@ export function RetentionHistoryTable() {
     while (attempt <= maxRetries && !success) {
       try {
         const sriData = await consultarFacturaSRI(item.numeroAutorizacion);
-        const retentionRef = doc(firestore, `users/${user.uid}/retenciones`, item.id);
         
         updateDocumentNonBlocking(retentionRef, { 
           sriEstado: sriData.estado, 
@@ -225,14 +245,21 @@ export function RetentionHistoryTable() {
       } catch (err: any) {
         attempt++;
         if (attempt <= maxRetries) {
-          const nextDelay = retryDelays[attempt - 1];
-          toast({
-            variant: 'warning',
-            title: `Reintentando consulta (${attempt}/${maxRetries})`,
-            description: `Error con ${item.numeroRetencion}. Reintentando en ${nextDelay / 1000}s...`
-          });
-          await new Promise(resolve => setTimeout(resolve, nextDelay));
+          if (!silent) {
+            toast({
+              variant: 'warning',
+              title: `Reintentando consulta (${attempt}/${maxRetries})`,
+              description: `Error con ${item.numeroRetencion}. Reintentando en ${retryDelays[attempt - 1] / 1000}s...`
+            });
+          }
+          await new Promise(resolve => setTimeout(resolve, retryDelays[attempt - 1]));
         } else {
+          // All retries exhausted — still update lastSriCheck so this item
+          // doesn't block the queue on the next cycle
+          updateDocumentNonBlocking(retentionRef, {
+            sriMensaje: `Error: ${err.message || 'No se pudo conectar con el SRI'}`,
+            lastSriCheck: new Date()
+          });
           if (!silent) {
             toast({ 
               variant: 'destructive', 
@@ -248,11 +275,10 @@ export function RetentionHistoryTable() {
   };
 
   const formatCountdown = (seconds: number) => {
-    if (seconds === 0 && (!activeRetenciones || activeRetenciones.length === 0)) return "00:00:00";
-    const h = Math.floor(seconds / 3600);
-    const m = Math.floor((seconds % 3600) / 60);
+    if (seconds === 0 && (!activeRetenciones || activeRetenciones.length === 0)) return "00:00";
+    const m = Math.floor(seconds / 60);
     const s = seconds % 60;
-    return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   };
 
   const selectedCount = Object.keys(selectedRetentions).length;
@@ -572,19 +598,19 @@ export function RetentionHistoryTable() {
                 <Button 
                     onClick={handleSyncAll}
                     disabled={isBulkSyncing || !activeRetenciones?.length}
-                    className="h-16 px-6 bg-emerald-600 hover:bg-emerald-700 text-white rounded-[1.5rem] shadow-lg shadow-emerald-500/20 font-black text-xs uppercase tracking-widest transition-all active:scale-95"
+                    className="h-10 px-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow-md shadow-emerald-500/20 font-black text-[10px] uppercase tracking-widest transition-all active:scale-95"
                 >
-                    {isBulkSyncing ? <RefreshCw className="mr-2 h-5 w-5 animate-spin" /> : <Zap className="mr-2 h-5 w-5" />}
+                    {isBulkSyncing ? <RefreshCw className="mr-1.5 h-4 w-4 animate-spin" /> : <Zap className="mr-1.5 h-4 w-4" />}
                     Sincronizar Todo
                 </Button>
               </TooltipTrigger>
               <TooltipContent side="top"><p>Revisar autorización en el SRI</p></TooltipContent>
             </Tooltip>
-            <div className="flex items-center gap-6 text-xs font-black text-primary bg-primary/10 border-2 border-primary/20 px-8 py-5 rounded-[1.5rem] shadow-md animate-in zoom-in duration-500 min-w-[200px]">
-              <Timer className="h-10 w-10" />
+            <div className="flex items-center gap-3 text-xs font-black text-primary bg-primary/10 border border-primary/20 px-4 py-2.5 rounded-xl shadow-sm animate-in zoom-in duration-500">
+              <Timer className="h-5 w-5" />
               <div className="flex flex-col">
-                <span className="text-[12px] uppercase tracking-widest opacity-60 leading-none">SINCRONIZANDO CON SRI:</span>
-                <span className="text-4xl font-mono leading-none mt-2">{isMounted ? formatCountdown(secondsUntilSync) : '00:00:00'}</span>
+                <span className="text-[9px] uppercase tracking-widest opacity-60 leading-none">Próx. Sync SRI</span>
+                <span className="text-lg font-mono leading-none mt-0.5">{isMounted ? formatCountdown(secondsUntilSync) : '00:00'}</span>
               </div>
             </div>
           </div>
