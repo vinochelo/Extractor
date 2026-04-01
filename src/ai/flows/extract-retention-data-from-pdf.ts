@@ -53,14 +53,34 @@ export async function extractRetentionDataFromPDF(
       const instance = createAiInstance(key);
       return await executeExtraction(instance, input);
     } catch (err: any) {
-      console.warn(`Error con llave API (intentando con la siguiente):`, err.message);
+      console.warn(`Error intentando extraer con llave API:`, err.message);
       lastError = err;
-      // Si el error es de cuota o similar, continuamos con la siguiente llave
-      continue; 
+      
+      const msg = err.message?.toLowerCase() || '';
+      // Verificamos si es un error de cuota (429), límite alcanzado, 
+      // error del servidor (500/503), o problema de permisos de llave (403)
+      const isQuotaOrServerError = 
+        msg.includes('429') || 
+        msg.includes('quota') || 
+        msg.includes('exhausted') || 
+        msg.includes('503') || 
+        msg.includes('500') ||
+        msg.includes('403') ||
+        msg.includes('overloaded');
+
+      if (isQuotaOrServerError) {
+        console.info('El error parece ser de límite de cuota o servidor. Intentando con la siguiente llave...');
+        continue;
+      } else {
+        // Si el archivo PDF es inválido (ej. 400 Bad Request), fallamos rápido
+        // para no desperdiciar los reintentos inútilmente con las otras llaves.
+        console.warn('El error no parece ser de cuota. Cancelando reintentos.');
+        break;
+      }
     }
   }
 
-  throw lastError || new Error("Todas las llaves API configuradas han fallado.");
+  throw lastError || new Error("Todas las llaves API configuradas han fallado o el documento es inválido.");
 }
 
 /**
