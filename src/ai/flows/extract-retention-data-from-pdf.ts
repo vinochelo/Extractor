@@ -24,10 +24,17 @@ const ExtractRetentionDataFromPDFOutputSchema = z.object({
   numeroAutorizacion: z.string().describe('El "numero de autorización" del documento.'),
   razonSocialProveedor: z.string().describe('La "razon social del proveedor" del documento.'),
   rucProveedor: z.string().describe('El "ruc del proveedor" del documento.'),
-  emailProveedor: z.string().describe('El "Email" del proveedor en el documento. Extraer si está presente.'),
+  emailProveedor: z.string().describe('El "Email" del proveedor en el documento. Extraer si está presente, si no retornar cadena vacía.'),
   numeroFactura: z.string().describe('El "numero de factura" del documento.'),
   fechaEmision: z.string().describe('La "fechaEmision" del documento.'),
   valorRetencion: z.string().describe('El "valor total retenido" del documento.'),
+  sociedad: z.enum(['Etafashion', 'RM', 'Desconocida']).describe(
+    'La sociedad EMISORA del comprobante de retención (quien retiene el valor, no el proveedor). ' +
+    'Identificar a partir del campo "Razón Social" o "Nombre" del emisor en el encabezado del documento. ' +
+    'Si el emisor contiene "ETATEX", "ETAFASHION" o "COMERCIAL ETATEX" → usar "Etafashion". ' +
+    'Si el emisor contiene "TIENDEC" o "TIENDEC S.A." → usar "RM". ' +
+    'Si no se puede determinar con certeza → usar "Desconocida".'
+  ),
 });
 export type ExtractRetentionDataFromPDFOutput = z.infer<typeof ExtractRetentionDataFromPDFOutputSchema>;
 
@@ -98,10 +105,14 @@ async function executeExtraction(instance: any, input: ExtractRetentionDataFromP
     - numeroAutorizacion
     - razonSocialProveedor
     - rucProveedor
-    - emailProveedor (if available)
+    - emailProveedor (if available, otherwise empty string)
     - numeroFactura
     - fechaEmision
     - valorRetencion
+    - sociedad: Identify the ISSUING company (the entity that ISSUES the retention, shown in the document header as emisor, not the proveedor/supplier).
+        * If the issuer's name contains "ETATEX", "ETAFASHION", or "COMERCIAL ETATEX" → use "Etafashion"
+        * If the issuer's name contains "TIENDEC" or "TIENDEC S.A." → use "RM"
+        * If it cannot be determined → use "Desconocida"
 
     Return the extracted data in JSON format. Ensure all numeric strings and dates are preserved as they appear.
 

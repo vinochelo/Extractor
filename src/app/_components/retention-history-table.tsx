@@ -47,6 +47,7 @@ import { es } from 'date-fns/locale';
 import type { RetentionRecord, RetentionStatus } from '@/lib/types';
 import { StatusSelector } from './status-selector';
 import { StatusBadge } from './status-badge';
+import { SociedadBadge, getSociedadRowClass } from './sociedad-badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { getAllEmailsForProvider } from '@/lib/provider-emails';
 import { consultarFacturaSRI } from '@/lib/sri-service';
@@ -247,7 +248,6 @@ export function RetentionHistoryTable() {
         if (attempt <= maxRetries) {
           if (!silent) {
             toast({
-              variant: 'warning',
               title: `Reintentando consulta (${attempt}/${maxRetries})`,
               description: `Error con ${item.numeroRetencion}. Reintentando en ${retryDelays[attempt - 1] / 1000}s...`
             });
@@ -447,9 +447,9 @@ export function RetentionHistoryTable() {
   };
 
   const renderTableRows = (items: RetentionRecord[]) => {
-    if (items.length === 0) return <TableRow><TableCell colSpan={13} className="h-48 text-center text-muted-foreground italic">No hay retenciones activas para mostrar.</TableCell></TableRow>;
+    if (items.length === 0) return <TableRow><TableCell colSpan={14} className="h-48 text-center text-muted-foreground italic">No hay retenciones activas para mostrar.</TableCell></TableRow>;
     return items.map((item: RetentionRecord) => (
-      <TableRow key={item.id} className={cn("transition-colors", selectedRetentions[item.id] ? "bg-primary/[0.03]" : "hover:bg-muted/30")}>
+      <TableRow key={item.id} className={cn("transition-colors", getSociedadRowClass(item.sociedad), selectedRetentions[item.id] ? "bg-primary/[0.03]" : "hover:bg-muted/30")}>
         <TableCell className="p-2"><Checkbox checked={!!selectedRetentions[item.id]} onCheckedChange={(value) => handleSelectRetention(item, !!value)} className="rounded" /></TableCell>
         <TableCell className="p-2">
             <div className="flex items-center gap-1.5 px-2">
@@ -490,6 +490,9 @@ export function RetentionHistoryTable() {
                   <TooltipContent side="top"><p>Copiar Datos</p></TooltipContent>
                 </Tooltip>
             </div>
+        </TableCell>
+        <TableCell className="p-2 w-[120px] text-center">
+          <SociedadBadge sociedad={item.sociedad} />
         </TableCell>
         <TableCell className="font-mono font-bold p-2 text-sm w-[160px] whitespace-nowrap">{item.numeroRetencion}</TableCell>
         <TableCell className="font-semibold p-2 w-[150px]"><div className="truncate text-sm" title={item.razonSocialProveedor}>{item.razonSocialProveedor}</div></TableCell>
@@ -541,16 +544,20 @@ export function RetentionHistoryTable() {
     ));
   };
 
+
   const renderArchivedTableRows = (items: RetentionRecord[]) => {
     if (items.length === 0) return <TableRow><TableCell colSpan={13} className="h-24 text-center italic text-muted-foreground">Nada que mostrar aquí.</TableCell></TableRow>;
     return items.map((item: RetentionRecord) => (
-      <TableRow key={item.id} className="opacity-70 hover:opacity-100 transition-opacity">
+      <TableRow key={item.id} className={cn("opacity-70 hover:opacity-100 transition-opacity", getSociedadRowClass(item.sociedad))}>
          <TableCell className="p-2">
            <div className="flex items-center gap-1.5 px-2">
              <Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg" onClick={() => handleShareForVoiding(item)}><Mail className="h-4 w-4 text-blue-600" /></Button>
              <Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg" onClick={() => handleRequestSriAcceptance(item)}><Send className="h-4 w-4 text-violet-700" /></Button>
            </div>
          </TableCell>
+        <TableCell className="p-2 text-center">
+          <SociedadBadge sociedad={item.sociedad} />
+        </TableCell>
         <TableCell className="font-mono p-2 text-[12px] font-bold whitespace-nowrap">{item.numeroRetencion}</TableCell>
         <TableCell className="font-semibold p-2 text-[12px] truncate max-w-[150px]">{item.razonSocialProveedor}</TableCell>
         <TableCell className="p-2 text-[12px] text-muted-foreground">{item.numeroFactura}</TableCell>
@@ -637,6 +644,7 @@ export function RetentionHistoryTable() {
               <TableRow className="hover:bg-transparent">
                 <TableHead className="w-[45px] p-2 text-center"><Checkbox checked={isMounted && selectedCount > 0 && selectedCount === activeRetenciones.length} onCheckedChange={(value) => handleSelectAll(!!value)} className="rounded" /></TableHead>
                 <TableHead className="p-2 w-[125px] font-black text-[10px] uppercase tracking-widest px-4">Acciones</TableHead>
+                <TableHead className="p-2 w-[120px] font-black text-[10px] uppercase tracking-widest text-center">Sociedad</TableHead>
                 <TableHead className="p-2 w-[160px] font-black text-[10px] uppercase tracking-widest">Retención</TableHead>
                 <TableHead className="p-2 w-[150px] font-black text-[10px] uppercase tracking-widest">Proveedor</TableHead>
                 <TableHead className="p-2 w-[115px] font-black text-[10px] uppercase tracking-widest">Factura</TableHead>
@@ -651,7 +659,7 @@ export function RetentionHistoryTable() {
               </TableRow>
             </TableHeader>
             <TableBody className="bg-background/20 backdrop-blur-sm">
-              {loading || !isMounted ? Array.from({ length: 4 }).map((_, i) => <TableRow key={i}><TableCell colSpan={13}><Skeleton className="h-14 w-full my-1 rounded-xl" /></TableCell></TableRow>) : renderTableRows(activeRetenciones)}
+              {loading || !isMounted ? Array.from({ length: 4 }).map((_, i) => <TableRow key={i}><TableCell colSpan={14}><Skeleton className="h-14 w-full my-1 rounded-xl" /></TableCell></TableRow>) : renderTableRows(activeRetenciones)}
             </TableBody>
           </Table>
         </div>

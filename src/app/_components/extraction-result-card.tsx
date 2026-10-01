@@ -15,7 +15,7 @@ import { RetentionRecord } from "@/lib/types";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { getAllEmailsForProvider } from "@/lib/provider-emails";
-
+import { SociedadBadge } from "./sociedad-badge";
 
 interface ExtractionResultCardProps {
   data: RetentionRecord;
@@ -114,7 +114,10 @@ Agradecemos su pronta gestión.
   return (
     <Card className="w-full max-w-2xl mx-auto mt-8 animate-in fade-in-50 slide-in-from-bottom-5 duration-500">
       <CardHeader>
-        <CardTitle>Datos Extraídos</CardTitle>
+        <div className="flex items-center justify-between gap-3">
+          <CardTitle>Datos Extraídos</CardTitle>
+          <SociedadBadge sociedad={data.sociedad} className="text-xs px-3 py-1.5" />
+        </div>
         <CardDescription>
           Se ha extraído la siguiente información del documento.
         </CardDescription>
