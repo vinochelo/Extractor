@@ -59,7 +59,7 @@ export function SociedadBadge({ sociedad, className }: SociedadBadgeProps) {
  * según la sociedad, dando un toque visual sutil sin ser llamativo.
  */
 export function getSociedadRowClass(sociedad?: Sociedad | null): string {
-  if (sociedad === "Etafashion") return "border-l-2 border-l-neutral-800";
-  if (sociedad === "RM") return "border-l-2 border-l-red-500";
-  return "border-l-2 border-l-transparent";
+  if (sociedad === "Etafashion") return "!border-l-4 !border-l-neutral-900";
+  if (sociedad === "RM") return "!border-l-4 !border-l-red-500";
+  return "!border-l-4 !border-l-transparent";
 }
