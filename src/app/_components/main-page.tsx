@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { PdfUploader } from './pdf-uploader';
 import { ExtractionResultCard } from './extraction-result-card';
 import { RetentionHistoryTable } from './retention-history-table';
+import { MotivoAnulacionDialog } from './motivo-anulacion-dialog';
 import { extractData } from '@/app/actions';
 import {
   useUser,
@@ -33,6 +34,7 @@ export function MainPage() {
   const [extractedData, setExtractedData] = useState<RetentionRecord | null>(
     null
   );
+  const [motivoDialogOpen, setMotivoDialogOpen] = useState(false);
   const [historyKey, setHistoryKey] = useState<number | null>(null);
   const [mounted, setMounted] = useState(false);
 
@@ -112,22 +114,34 @@ export function MainPage() {
         );
         const querySnapshot = await getDocs(q);
 
-        setExtractedData({ ...retentionRecordData, id: 'temp-preview' } as any);
         setFile(null);
 
         if (!querySnapshot.empty) {
+          const existingDoc = querySnapshot.docs[0];
+          const existingData = existingDoc.data();
+          setExtractedData({
+            ...retentionRecordData,
+            id: existingDoc.id,
+            motivoAnulacion: existingData.motivoAnulacion || '',
+          } as any);
           setDuplicateWarning(
             `La retención Nro. ${result.data.numeroRetencion} ya existe en tu historial. No se guardará de nuevo.`
           );
+          if (!existingData.motivoAnulacion) {
+            setMotivoDialogOpen(true);
+          }
         } else {
           const docRef = await addDocumentNonBlocking(
             retencionesCollection,
             retentionRecordData
           );
           setHistoryKey(Date.now());
-          if (docRef) {
-            setExtractedData({ ...retentionRecordData, id: docRef.id } as any);
-          }
+          const newRecord = {
+            ...retentionRecordData,
+            id: docRef ? docRef.id : 'temp-preview',
+          } as any;
+          setExtractedData(newRecord);
+          setMotivoDialogOpen(true);
         }
       } else {
         setError(result.error);
@@ -195,9 +209,23 @@ export function MainPage() {
 
               {extractedData && (
                 <div className="animate-in fade-in slide-in-from-bottom-6 duration-700 max-w-4xl mx-auto">
-                  <ExtractionResultCard data={extractedData} />
+                  <ExtractionResultCard
+                    data={extractedData}
+                    onEditMotivo={() => setMotivoDialogOpen(true)}
+                  />
                 </div>
               )}
+
+              <MotivoAnulacionDialog
+                retention={extractedData}
+                open={motivoDialogOpen}
+                onOpenChange={setMotivoDialogOpen}
+                onSaved={(motivo) => {
+                  setExtractedData((prev) =>
+                    prev ? { ...prev, motivoAnulacion: motivo } : null
+                  );
+                }}
+              />
               
               <section className="pt-8 border-t border-border/40 max-w-4xl mx-auto">
                  <EmailImporter />

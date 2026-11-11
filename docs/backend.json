@@ -81,6 +81,10 @@
         "sriAcceptanceRequested": {
           "type": "boolean",
           "description": "Indica si se ha solicitado la aceptación de anulación en el SRI."
+        },
+        "motivoAnulacion": {
+          "type": "string",
+          "description": "Motivo u observación manual de por qué se solicita anular la retención."
         }
       },
       "required": [

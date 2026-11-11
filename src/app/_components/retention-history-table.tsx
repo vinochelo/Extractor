@@ -41,13 +41,14 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
-import { ExternalLink, FileWarning, Archive, RotateCcw, Trash2, Mail, Send, Copy, CheckCircle2, RefreshCw, Clock, Timer, FileX, Zap } from 'lucide-react';
+import { ExternalLink, FileWarning, Archive, RotateCcw, Trash2, Mail, Send, Copy, CheckCircle2, RefreshCw, Clock, Timer, FileX, Zap, MessageSquareWarning } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { RetentionRecord, RetentionStatus } from '@/lib/types';
 import { StatusSelector } from './status-selector';
 import { StatusBadge } from './status-badge';
 import { SociedadBadge, getSociedadRowClass } from './sociedad-badge';
+import { MotivoAnulacionDialog } from './motivo-anulacion-dialog';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { getAllEmailsForProvider } from '@/lib/provider-emails';
 import { consultarFacturaSRI } from '@/lib/sri-service';
@@ -63,6 +64,7 @@ const formatDisplayKey = (key: string): string => {
       numeroFactura: "Nro. Factura",
       fechaEmision: "Fecha Emisión",
       valorRetencion: "Valor Retenido",
+      motivoAnulacion: "Motivo de Anulación",
     };
     return keyMap[key] || key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
 };
@@ -75,7 +77,8 @@ const desiredOrder: (keyof RetentionRecord)[] = [
     'emailProveedor',
     'numeroFactura',
     'fechaEmision',
-    'valorRetencion'
+    'valorRetencion',
+    'motivoAnulacion'
 ];
 
 export function RetentionHistoryTable() {
@@ -83,6 +86,7 @@ export function RetentionHistoryTable() {
   const firestore = useFirestore();
   const { toast } = useToast();
   const [retentionToDelete, setRetentionToDelete] = useState<RetentionRecord | null>(null);
+  const [retentionForMotivo, setRetentionForMotivo] = useState<RetentionRecord | null>(null);
   const [selectedRetentions, setSelectedRetentions] = useState<Record<string, RetentionRecord>>({});
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [checkingSriId, setCheckingSriId] = useState<string | null>(null);
@@ -447,7 +451,7 @@ export function RetentionHistoryTable() {
   };
 
   const renderTableRows = (items: RetentionRecord[]) => {
-    if (items.length === 0) return <TableRow><TableCell colSpan={14} className="h-48 text-center text-muted-foreground italic">No hay retenciones activas para mostrar.</TableCell></TableRow>;
+    if (items.length === 0) return <TableRow><TableCell colSpan={15} className="h-48 text-center text-muted-foreground italic">No hay retenciones activas para mostrar.</TableCell></TableRow>;
     return items.map((item: RetentionRecord) => (
       <TableRow key={item.id} className={cn("transition-colors", getSociedadRowClass(item.sociedad), selectedRetentions[item.id] ? "bg-primary/[0.03]" : "hover:bg-muted/30")}>
         <TableCell className="p-2"><Checkbox checked={!!selectedRetentions[item.id]} onCheckedChange={(value) => handleSelectRetention(item, !!value)} className="rounded" /></TableCell>
@@ -498,6 +502,30 @@ export function RetentionHistoryTable() {
         <TableCell className="font-semibold p-2 w-[150px]"><div className="truncate text-sm" title={item.razonSocialProveedor}>{item.razonSocialProveedor}</div></TableCell>
         <TableCell className="p-2 w-[110px] font-medium text-muted-foreground text-sm">{item.numeroFactura}</TableCell>
         <TableCell className="font-mono font-bold text-right p-2 w-[110px] text-primary text-sm">{item.valorRetencion}</TableCell>
+        <TableCell className="p-2 w-[180px]">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                onClick={() => setRetentionForMotivo(item)}
+                className={cn(
+                  "w-full text-left px-2.5 py-1.5 rounded-lg border text-xs transition-all flex items-center gap-1.5 max-w-[175px]",
+                  item.motivoAnulacion
+                    ? "bg-amber-500/[0.06] border-amber-500/30 text-foreground font-medium hover:bg-amber-500/10"
+                    : "bg-muted/20 border-dashed border-border text-muted-foreground italic hover:border-primary/40 hover:text-foreground"
+                )}
+              >
+                <MessageSquareWarning className={cn("h-3.5 w-3.5 shrink-0", item.motivoAnulacion ? "text-amber-600" : "text-muted-foreground/60")} />
+                <span className="truncate">{item.motivoAnulacion || "Agregar motivo..."}</span>
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="top" className="max-w-xs">
+              <p className="text-xs font-medium">
+                {item.motivoAnulacion ? `Motivo: ${item.motivoAnulacion} (clic para editar)` : "Clic para indicar el motivo de anulación"}
+              </p>
+            </TooltipContent>
+          </Tooltip>
+        </TableCell>
         <TableCell className="p-2 w-[220px]">
           <div className="flex flex-col items-center justify-center gap-1.5 py-2 px-3 bg-muted/30 rounded-xl border border-border/60 shadow-sm min-h-[70px]">
             <div className={cn("text-lg font-black uppercase tracking-widest leading-none", getSriStatusColor(item.sriEstado))}>
@@ -546,7 +574,7 @@ export function RetentionHistoryTable() {
 
 
   const renderArchivedTableRows = (items: RetentionRecord[]) => {
-    if (items.length === 0) return <TableRow><TableCell colSpan={13} className="h-24 text-center italic text-muted-foreground">Nada que mostrar aquí.</TableCell></TableRow>;
+    if (items.length === 0) return <TableRow><TableCell colSpan={14} className="h-24 text-center italic text-muted-foreground">Nada que mostrar aquí.</TableCell></TableRow>;
     return items.map((item: RetentionRecord) => (
       <TableRow key={item.id} className={cn("opacity-70 hover:opacity-100 transition-opacity", getSociedadRowClass(item.sociedad))}>
          <TableCell className="p-2">
@@ -562,6 +590,22 @@ export function RetentionHistoryTable() {
         <TableCell className="font-semibold p-2 text-[12px] truncate max-w-[150px]">{item.razonSocialProveedor}</TableCell>
         <TableCell className="p-2 text-[12px] text-muted-foreground">{item.numeroFactura}</TableCell>
         <TableCell className="font-mono font-bold text-right p-2 text-[12px]">{item.valorRetencion}</TableCell>
+        <TableCell className="p-2 max-w-[170px]">
+          <button
+            type="button"
+            onClick={() => setRetentionForMotivo(item)}
+            className={cn(
+              "w-full text-left px-2 py-1 rounded-md border text-[11px] transition-all flex items-center gap-1 max-w-[165px]",
+              item.motivoAnulacion
+                ? "bg-amber-500/[0.06] border-amber-500/30 text-foreground font-medium"
+                : "bg-muted/20 border-dashed border-border text-muted-foreground italic"
+            )}
+            title={item.motivoAnulacion || "Agregar motivo"}
+          >
+            <MessageSquareWarning className="h-3 w-3 shrink-0 text-amber-600" />
+            <span className="truncate">{item.motivoAnulacion || "Sin motivo"}</span>
+          </button>
+        </TableCell>
         <TableCell className="p-2 w-[180px]">
           <div className={cn("text-[11px] font-black uppercase text-center py-1 px-3 rounded-full bg-muted/40", getSriStatusColor(item.sriEstado))}>
             {item.sriEstado || "N/A"}
@@ -649,6 +693,7 @@ export function RetentionHistoryTable() {
                 <TableHead className="p-2 w-[150px] font-black text-[10px] uppercase tracking-widest">Proveedor</TableHead>
                 <TableHead className="p-2 w-[115px] font-black text-[10px] uppercase tracking-widest">Factura</TableHead>
                 <TableHead className="text-right p-2 w-[115px] font-black text-[10px] uppercase tracking-widest">Valor</TableHead>
+                <TableHead className="p-2 w-[180px] font-black text-[10px] uppercase tracking-widest">Motivo Anulación</TableHead>
                 <TableHead className="p-2 w-[220px] text-center font-black text-[10px] uppercase tracking-widest">SRI Status</TableHead>
                 <TableHead className="p-2 w-[140px] text-center font-black text-[10px] uppercase tracking-widest">App Status</TableHead>
                 <TableHead className="p-2 w-[125px] font-black text-[10px] uppercase tracking-widest">Registro</TableHead>
@@ -659,7 +704,7 @@ export function RetentionHistoryTable() {
               </TableRow>
             </TableHeader>
             <TableBody className="bg-background/20 backdrop-blur-sm">
-              {loading || !isMounted ? Array.from({ length: 4 }).map((_, i) => <TableRow key={i}><TableCell colSpan={14}><Skeleton className="h-14 w-full my-1 rounded-xl" /></TableCell></TableRow>) : renderTableRows(activeRetenciones)}
+              {loading || !isMounted ? Array.from({ length: 4 }).map((_, i) => <TableRow key={i}><TableCell colSpan={15}><Skeleton className="h-14 w-full my-1 rounded-xl" /></TableCell></TableRow>) : renderTableRows(activeRetenciones)}
             </TableBody>
           </Table>
         </div>
@@ -728,6 +773,12 @@ export function RetentionHistoryTable() {
             </AlertDialogFooter>
         </AlertDialogContent>
     </AlertDialog>
+
+    <MotivoAnulacionDialog
+      retention={retentionForMotivo}
+      open={!!retentionForMotivo}
+      onOpenChange={(open) => !open && setRetentionForMotivo(null)}
+    />
     </TooltipProvider>
   );
 }

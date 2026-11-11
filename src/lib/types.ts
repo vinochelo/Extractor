@@ -28,4 +28,5 @@ export type RetentionRecord = RetentionData & {
   lastSriCheck?: Timestamp | Date;
   emailAnularSent?: boolean;
   sriAcceptanceRequested?: boolean;
+  motivoAnulacion?: string;
 };

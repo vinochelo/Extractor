@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Copy, Mail, Check, Send } from "lucide-react";
+import { Copy, Mail, Check, Send, MessageSquareWarning, Pencil } from "lucide-react";
 import { RetentionRecord } from "@/lib/types";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -19,6 +19,7 @@ import { SociedadBadge } from "./sociedad-badge";
 
 interface ExtractionResultCardProps {
   data: RetentionRecord;
+  onEditMotivo?: () => void;
 }
 
 // Helper to format keys for display
@@ -32,6 +33,7 @@ const formatDisplayKey = (key: string): string => {
     numeroFactura: "Nro. Factura",
     fechaEmision: "Fecha Emisión",
     valorRetencion: "Valor Retenido",
+    motivoAnulacion: "Motivo de Anulación",
   };
   return keyMap[key] || key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
 };
@@ -45,9 +47,10 @@ const desiredOrder: (keyof RetentionRecord)[] = [
     'numeroFactura',
     'fechaEmision',
     'valorRetencion',
+    'motivoAnulacion',
 ];
 
-export function ExtractionResultCard({ data }: ExtractionResultCardProps) {
+export function ExtractionResultCard({ data, onEditMotivo }: ExtractionResultCardProps) {
   const { toast } = useToast();
   const [copied, setCopied] = useState(false);
 
@@ -124,7 +127,9 @@ Agradecemos su pronta gestión.
       </CardHeader>
       <CardContent className="grid gap-4">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-          {displayableData.map(([key, value]) => (
+          {displayableData
+            .filter(([key]) => key !== 'motivoAnulacion')
+            .map(([key, value]) => (
             <div key={key} className={cn(
               "p-3 bg-muted/50 rounded-lg",
               (key === 'numeroRetencion' || key === 'emailProveedor') && 'sm:col-span-2'
@@ -136,6 +141,33 @@ Agradecemos su pronta gestión.
               )}>{value}</p>
             </div>
           ))}
+        </div>
+
+        <div className="p-3.5 rounded-xl border border-amber-500/30 bg-amber-500/[0.04] flex items-start justify-between gap-3">
+          <div className="space-y-1">
+            <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-amber-700">
+              <MessageSquareWarning className="h-4 w-4" />
+              <span>Motivo de Anulación</span>
+            </div>
+            <p className={cn(
+              "text-sm",
+              data.motivoAnulacion ? "font-medium text-foreground" : "italic text-muted-foreground"
+            )}>
+              {data.motivoAnulacion || "Sin motivo registrado aún."}
+            </p>
+          </div>
+          {onEditMotivo && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={onEditMotivo}
+              className="shrink-0 h-8 text-xs font-bold rounded-lg border-amber-500/30 hover:bg-amber-500/10"
+            >
+              <Pencil className="mr-1.5 h-3.5 w-3.5" />
+              {data.motivoAnulacion ? "Editar Motivo" : "Indicar Motivo"}
+            </Button>
+          )}
         </div>
       </CardContent>
       <CardFooter className="flex flex-wrap justify-end gap-2">
